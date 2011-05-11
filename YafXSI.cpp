@@ -1,8 +1,7 @@
 /*
-This file is part of YafXSI.
-YafaRay Exporter addon for Autodesk(c) Softimage(c).
+YafXSI - Softimage XSI Export addon for YafaRay.
 
-Copyright (C) 2010 2011  Pedro Alcaide aka povmaniaco
+Copyright (C) 2011  Pedro Alcaide aka povmaniaco
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,11 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "stdafx.h"
 //--
-using namespace std;
 using namespace XSI;
 using namespace MATH;
 using namespace yafaray;
-
+using namespace std;
 //--
 
 ofstream f;
@@ -47,7 +45,6 @@ void yafaray_update_values( CString paramName, Parameter changed, PPGEventContex
 void yafaray_dynamic( Parameter changed, PPGEventContext ctxt );
 //-- 
 void yafaray_material(yafrayInterface_t *yi, CString texName);
-
 //--
 int vBounces=10,vSavefile=1,vXRes=640,vYRes=480;
  
@@ -84,10 +81,6 @@ float vContrast=2.2f, vcontrast_in = 2.2f, vDiff_radius=0.5f,vCaust_radius=0.5f,
 float vIbl_power=1.0f,vHorbright=1.0f,vHorsprd=1.0f,vSunbright=1.0f,vSunsize=1.0f,vBacklight=1.0f,vXvect=1.0f;
 float vYvect=1.0f,vZvect=1.0f,vW_power=1.0f,vTurbidity=3.0f,vSun_power=1.0f;
 
-//-- SPPM
-int vspphotons = 10000, vsppassNums = 500, vspbounces = 4, vspsearch = 50, vsptimes = 1;
-bool vsppmIRE = false;
-float vspdiffuseRadius = 1.0;
 //--
 int vtileorder = 0, vtilesize = 32;
 
@@ -99,7 +92,7 @@ float vHor_blue=1.0f,vHor_alpha=1.0f,vZen_red=1.0f,vZen_green=1.0f,vZen_blue=1.0
 float vHorgro_red=1.0f,vHorgro_green=1.0f;
 float vHorgro_blue=1.0f,vHorgro_alpha=1.0f,vZengro_red=1.0f,vZengro_green=1.0f,vZengro_blue=1.0f,vZengro_alpha=1.0f;
 
-//-- hiddend 
+//-- hiddend objects --->
 bool vIsHiddenCam = true, vIsHiddenLight = true, vIsHiddenObj = true;
 bool vIsHiddenSurfaces = true, vIsHiddenClouds = false;
 //--
@@ -111,6 +104,7 @@ int vmapworld = 0;
 //-- background
 int vSetworl = 0, vTracer_method = 0;
 
+//--
 //---- matrices
 char aBool [2][6] = {"false", "true"};
 char file_ext [6][4] = {"tif", "tga", "png", "jpg", "hdr", "exr" };
@@ -135,6 +129,7 @@ yafrayInterface_t *yi;
 material_t *mat= NULL;
 string mat_name;
 string tex_name;
+string map_name;
 //-- 
 map<string, material_t *> mMap;
 map<string, material_t *>::const_iterator mi;
@@ -172,7 +167,20 @@ XSIPLUGINCALLBACK CStatus XSIUnloadPlugin( const PluginRegistrar& in_reg )
 XSIPLUGINCALLBACK CStatus YafaRayRenderer_Define( CRef& in_ctxt )
 {
 	Context ctxt( in_ctxt ); 
-	
+	/*
+	CStatus AddParameter(
+		const CString& in_scriptname,
+		CValue::DataType in_type,
+		INT in_capabilities,
+		const CString& in_name,
+		const CString& in_description,
+		const CValue& in_default,
+		const CValue& in_min,
+		const CValue& in_max,
+		const CValue& in_suggestedmin,
+		const CValue& in_suggestedmax,
+		Parameter&	io_parameter );
+	*/
 	Parameter oParam;
 	prop = ctxt.GetSource();
 	int sps = siPersistable;
@@ -232,16 +240,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_Define( CRef& in_ctxt )
 	prop.AddParameter( L"buseback",	         CValue::siBool,	sps,L"",L"", vUse_backg,		dft,dft,dft,dft,	oParam);
 	prop.AddParameter( L"bpathcaus_mix",     CValue::siInt4,	sps,L"",L"", vPTCaustic_mix,	1,10000,1,10000,	oParam);
 	prop.AddParameter( L"bpath_depth",       CValue::siInt4,	sps,L"",L"", vPath_depth,		0,50,0,50,			oParam);
-	
-    //-- sppm
-    prop.AddParameter( L"bspphotons",          CValue::siInt4,	sps,L"",L"", vspphotons,       10000,2000000,500000,1000000, oParam );
-    prop.AddParameter( L"bsppassNums",         CValue::siInt4,	sps,L"",L"", vsppassNums,      1,1000,500,1000,      oParam);
-    prop.AddParameter( L"bspbounces",          CValue::siInt4,	sps,L"",L"", vspbounces,       1,10,4,10,            oParam );
-    prop.AddParameter( L"bspdiffuseRadius",    CValue::siFloat,	sps,L"",L"", vspdiffuseRadius, 0.0,10.0,1.0,5.0,     oParam);
-    prop.AddParameter( L"bspsearch",           CValue::siInt4,	sps,L"",L"", vspsearch,        1,100,50,100,         oParam );
-    prop.AddParameter( L"bsptimes",            CValue::siInt4,	sps,L"",L"", vsptimes,         0,1,1,1,      oParam );       
-    prop.AddParameter( L"bsppmIRE",            CValue::siBool, sps, L"",L"", vsppmIRE,         0,1,1,1,      oParam );       
-    
+		
 //----/ general settings /-------------->
 	prop.AddParameter( L"bclay",           CValue::siBool, sps, L"",L"", vClay_render,		dft,dft,dft,dft, oParam);
 	prop.AddParameter( L"bthreads",        CValue::siInt4, sps, L"",L"", vThreads,			0,20,0,20,		 oParam);
@@ -367,7 +366,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_Define( CRef& in_ctxt )
 }
 //--
 XSIPLUGINCALLBACK CStatus YafaRayRenderer_PPGEvent( const CRef& in_ctxt )
-{
+{	
 	//--
 	PPGEventContext ctxt( in_ctxt ) ;
 	PPGLayout lay = Context(in_ctxt).GetSource() ;
@@ -396,17 +395,9 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_PPGEvent( const CRef& in_ctxt )
         }
 		if (buttonPressed.GetAsText() == L"render_YafXSI")
 		{
-             CValueArray args( 1 ) ;
-        args[0] = prop ;
-		CValue retval ;
-		app.ExecuteCommand( L"DeleteObj", args, retval ) ;
-
-		// Tell the context that we want the
-		// the property page closed
-		ctxt.PutAttribute( L"Close", true ) ;
 		//	out_type = "console";
         //    api_yaf();
-        }
+		}
 		if (buttonPressed.GetAsText() == L"render_qtgui")
 		{
             out_type = "gui";
@@ -429,11 +420,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_PPGEvent( const CRef& in_ctxt )
 		CString paramName = changed.GetScriptName() ;
 			yafaray_update_values(paramName, changed, ctxt);
 		//--
-	}
-    else if ( eventID == PPGEventContext::siOnClosed )
-    {
-        app.LogMessage(L"Closed PPG");
-    }
+	} 
 	
 	return CStatus::OK ;
 }
@@ -491,7 +478,7 @@ void yafaray_update_values(CString paramName, Parameter changed, PPGEventContext
 	} else if (paramName == L"bshow_map")		{ vShow_map		= changed.GetValue();
 
     //----/ pathtracing /---------->
-	} else if (paramName == L"bpathcaus_photons") { vPTCphotons     = changed.GetValue();
+	} else if (paramName == L"bpathcaus_photons")	{ vPTCphotons     = changed.GetValue();
 	} else if (paramName == L"bpathcaus_mix")	  { vPTCaustic_mix  = changed.GetValue();
 	} else if (paramName == L"bpathcaus_depth")	  { vCaustic_depth  = changed.GetValue();
 	} else if (paramName == L"bpathcaus_radius")  { vPTCaust_radius = changed.GetValue();
@@ -500,17 +487,7 @@ void yafaray_update_values(CString paramName, Parameter changed, PPGEventContext
 	} else if (paramName == L"bno_recursion")	  { vNo_recursion   = changed.GetValue();
 	} else if (paramName == L"tracer_method")	  { vTracer_method  = changed.GetValue();
 	} else if (paramName == L"buseback")		  { vUse_backg	  = changed.GetValue();
-    
-    //--
-    //---- SPPM
-    } else if (paramName == L"bspphotons")          { vspphotons       = changed.GetValue();
-    } else if (paramName == L"bsppassNums")         { vsppassNums      = changed.GetValue();
-    } else if (paramName == L"bspbounces")          { vspbounces       = changed.GetValue();
-    } else if (paramName == L"bspdiffuseRadius")    { vspdiffuseRadius = changed.GetValue();
-    } else if (paramName == L"bspsearch")           { vspsearch        = changed.GetValue();
-    } else if (paramName == L"bsptimes")            { vsptimes         = changed.GetValue();       
-    } else if (paramName == L"bsppmIRE")            { vsppmIRE         = changed.GetValue();        
-    
+
     //----/ general /---------->
 	} else if (paramName == L"braydepth")		{ vRaydepth = changed.GetValue();
 	} else if (paramName == L"btransp_shadows")	{ vTransp_shad = changed.GetValue();
@@ -541,13 +518,9 @@ void yafaray_update_values(CString paramName, Parameter changed, PPGEventContext
 	} else if (paramName == L"baa_inc")		{ vAA_inc		= changed.GetValue();
 	} else if (paramName == L"baa_pixel")		{ vAA_pixel		= changed.GetValue();
 	} else if (paramName == L"baa_modes")		{ vFilter_type	= changed.GetValue();
-    }
 
-    //----/ world  settings/------->------------------------------------------------------------
-	
-	//} else //-- WARNING: MANY RECURSIVE ELSE IF
-
-    if (paramName == L"setworld")	{ vSetworl		= changed.GetValue();
+    //----/ setworld /---->
+	} else if (paramName == L"setworld")	{ vSetworl		= changed.GetValue();
 	//----/ single color ------
 	} else if (paramName == L"bsc_red")	{ vBack_red		= changed.GetValue();
 	} else if (paramName == L"bsc_green")	{ vBack_green	= changed.GetValue();
@@ -641,116 +614,98 @@ void yafaray_update_values(CString paramName, Parameter changed, PPGEventContext
 	yafaray_dynamic( changed, ctxt);
 } 
 //--
-void yafaray_dynamic( Parameter changed, PPGEventContext ctxt)
-{
-    CustomProperty prop = changed.GetParent() ;
-	CString paramName = changed.GetScriptName() ;
+void yafaray_dynamic( Parameter changed, PPGEventContext ctxt){
+	
+//	Parameter changed = ctxt.GetSource();
+		CustomProperty prop = changed.GetParent() ;
+		CString paramName = changed.GetScriptName() ;
 
 	//-- GROUP LIGHTING ----
 
-	if ((changed.GetName() == L"blighting" ) ||
-        ( changed.GetName() == L"bcaustics" ) ||
-	    ( changed.GetName() == L"bUse_AO" ) ||
-	    ( changed.GetName() == L"bfinal_gather" ) ||
-	    ( changed.GetName() == L"tracer_method" ))
-    {
-        vLighting = prop.GetParameterValue( L"blighting" );
-        vUseCaust = prop.GetParameterValue( L"bcaustics" );
-        vUse_AO = prop.GetParameterValue( L"bUse_AO" );
-        vFinal_gather = prop.GetParameterValue( L"bfinal_gather" );
-        vTracer_method = prop.GetParameterValue( L"tracer_method" );
+		if ((changed.GetName() == L"blighting" ) ||
+            ( changed.GetName() == L"bcaustics" ) ||
+		    ( changed.GetName() == L"bUse_AO" ) ||
+		    ( changed.GetName() == L"bfinal_gather" ) ||
+		    ( changed.GetName() == L"tracer_method" ))
+        {
+            vLighting = prop.GetParameterValue( L"blighting" );
+            vUseCaust = prop.GetParameterValue( L"bcaustics" );
+            vUse_AO = prop.GetParameterValue( L"bUse_AO" );
+            vFinal_gather = prop.GetParameterValue( L"bfinal_gather" );
+            vTracer_method = prop.GetParameterValue( L"tracer_method" );
 
-    //-- all params width group direct lighting
-        Parameter lphotons		  = prop.GetParameters().GetItem( L"bDLCphotons" ); //--
-	    Parameter lcaustic_mix    = prop.GetParameters().GetItem( L"bDLcaustic_mix" ); //--
-        Parameter lcaustic_depth  = prop.GetParameters().GetItem( L"bcaustic_depth" ) ; //---
-        Parameter lcaustic_radius = prop.GetParameters().GetItem( L"bDLcaust_radius" ) ;
-        Parameter lao_samples	  = prop.GetParameters().GetItem( L"bao_samples" ) ;
-	    Parameter lao_distance	  = prop.GetParameters().GetItem( L"bao_distance" ) ;
-	    Parameter lAOc_red		  = prop.GetParameters().GetItem( L"AOc_red" ) ;
-        //-- event controls
-        Parameter lbcaustics	  = prop.GetParameters().GetItem( L"bcaustics" );
-        Parameter lbUse_AO		  = prop.GetParameters().GetItem( L"bUse_AO" );
+        //-- all params with group  lighting
+            Parameter lphotons		    = prop.GetParameters().GetItem( L"bDLCphotons" ); //--
+	        Parameter lcaustic_mix	    = prop.GetParameters().GetItem( L"bDLcaustic_mix" ); //--
+            Parameter lcaustic_depth	= prop.GetParameters().GetItem( L"bcaustic_depth" ) ; //---
+            Parameter lcaustic_radius	= prop.GetParameters().GetItem( L"bDLcaust_radius" ) ;
+            Parameter lao_samples	    = prop.GetParameters().GetItem( L"bao_samples" ) ;
+	        Parameter lao_distance	    = prop.GetParameters().GetItem( L"bao_distance" ) ;
+	        Parameter lAOc_red		    = prop.GetParameters().GetItem( L"AOc_red" ) ;
+            //-- event controls
+            Parameter lbcaustics	= prop.GetParameters().GetItem( L"bcaustics" );
+            Parameter lbUse_AO		= prop.GetParameters().GetItem( L"bUse_AO" );
 
-        //-- PhotonMap
-        Parameter lbdepth		  = prop.GetParameters().GetItem( L"bdepth");			
-        Parameter lbdiff_photons  = prop.GetParameters().GetItem( L"bdiff_photons");	
-        Parameter lbcaust_photons = prop.GetParameters().GetItem( L"bcaust_photons");	
-        Parameter lbdiff_radius	  = prop.GetParameters().GetItem( L"bdiff_radius");	
-        Parameter lbcaust_radius  = prop.GetParameters().GetItem( L"bcaust_radius");	
-        Parameter lbsearch		  = prop.GetParameters().GetItem( L"bsearch");
-        Parameter lbcaustic_mix	  = prop.GetParameters().GetItem( L"bcaustic_mix");	
-        Parameter lbfinal_gather  = prop.GetParameters().GetItem( L"bfinal_gather"); 
-        Parameter lbfg_bounces	  = prop.GetParameters().GetItem( L"bfg_bounces");
-        Parameter lbfg_samples	  = prop.GetParameters().GetItem( L"bfg_samples");	 
-        Parameter lbshow_map	  = prop.GetParameters().GetItem( L"bshow_map");		
+            //-- PhotonMap
+            Parameter lbdepth		    = prop.GetParameters().GetItem( L"bdepth");			
+            Parameter lbdiff_photons	= prop.GetParameters().GetItem( L"bdiff_photons");	
+            Parameter lbcaust_photons	= prop.GetParameters().GetItem( L"bcaust_photons");	
+            Parameter lbdiff_radius  	= prop.GetParameters().GetItem( L"bdiff_radius");	
+            Parameter lbcaust_radius    = prop.GetParameters().GetItem( L"bcaust_radius");	
+            Parameter lbsearch		    = prop.GetParameters().GetItem( L"bsearch");
+            Parameter lbcaustic_mix	    = prop.GetParameters().GetItem( L"bcaustic_mix");	
+            Parameter lbfinal_gather	= prop.GetParameters().GetItem( L"bfinal_gather"); 
+            Parameter lbfg_bounces	    = prop.GetParameters().GetItem( L"bfg_bounces");
+            Parameter lbfg_samples	    = prop.GetParameters().GetItem( L"bfg_samples");	 
+            Parameter lbshow_map	    = prop.GetParameters().GetItem( L"bshow_map");		
 		
-        //-- path tracing
-        Parameter ltracer_method	= prop.GetParameters().GetItem( L"tracer_method");
-        Parameter lbpathcaus_photons = prop.GetParameters().GetItem( L"bpathcaus_photons");
-        Parameter lbpathcaus_mix	= prop.GetParameters().GetItem( L"bpathcaus_mix");
-        Parameter lbpathcaus_depth	= prop.GetParameters().GetItem( L"bpathcaus_depth")	;
-        Parameter lbpathcaus_radius = prop.GetParameters().GetItem( L"bpathcaus_radius");
-        Parameter lbpath_depth	= prop.GetParameters().GetItem( L"bpath_depth");
-        Parameter lbpath_samples	= prop.GetParameters().GetItem( L"bpath_samples");
-        Parameter lbno_recursion	= prop.GetParameters().GetItem( L"bno_recursion");
-        Parameter lbuseback     	= prop.GetParameters().GetItem( L"buseback");
-		
-        //-- sppm
-        Parameter lbspphotons          = prop.GetParameters().GetItem( L"bspphotons");
-        Parameter lbsppassNums         = prop.GetParameters().GetItem( L"bsppassNums");
-        Parameter lbspbounces          = prop.GetParameters().GetItem( L"bspbounces");
-        Parameter lbspdiffuseRadius    = prop.GetParameters().GetItem( L"bspdiffuseRadius");
-        Parameter lbspsearch           = prop.GetParameters().GetItem( L"bspsearch"); 
-        Parameter lbsptimes            = prop.GetParameters().GetItem( L"bsptimes");
-        Parameter lbsppmIRE            = prop.GetParameters().GetItem( L"bsppmIRE");
+            //-- path tracing
+            Parameter ltracer_method	= prop.GetParameters().GetItem( L"tracer_method");
+            Parameter lbpathcaus_photons = prop.GetParameters().GetItem( L"bpathcaus_photons");
+            Parameter lbpathcaus_mix	= prop.GetParameters().GetItem( L"bpathcaus_mix");
+            Parameter lbpathcaus_depth	= prop.GetParameters().GetItem( L"bpathcaus_depth")	;
+            Parameter lbpathcaus_radius = prop.GetParameters().GetItem( L"bpathcaus_radius");
+            Parameter lbpath_depth	    = prop.GetParameters().GetItem( L"bpath_depth");
+            Parameter lbpath_samples	= prop.GetParameters().GetItem( L"bpath_samples");
+            Parameter lbno_recursion	= prop.GetParameters().GetItem( L"bno_recursion");
+            Parameter lbuseback     	= prop.GetParameters().GetItem( L"buseback");
 		
         //-- direct lighting
-        lbcaustics.PutCapabilityFlag( siNotInspectable, true ) ;
-        lbUse_AO.PutCapabilityFlag( siNotInspectable, true ) ;
-        lphotons.PutCapabilityFlag( siNotInspectable, true ) ;
-        lcaustic_depth.PutCapabilityFlag( siNotInspectable, true ) ;
-        lcaustic_radius.PutCapabilityFlag( siNotInspectable, true ) ;
-        lcaustic_mix.PutCapabilityFlag( siNotInspectable, true ) ;
-        lao_samples.PutCapabilityFlag( siNotInspectable, true ) ;
-		lao_distance.PutCapabilityFlag( siNotInspectable, true ) ;
-		lAOc_red.PutCapabilityFlag( siNotInspectable, true ) ;
+            lbcaustics.PutCapabilityFlag( siNotInspectable, true ) ;
+            lbUse_AO.PutCapabilityFlag( siNotInspectable, true ) ;
+            lphotons.PutCapabilityFlag( siNotInspectable, true ) ;
+            lcaustic_depth.PutCapabilityFlag( siNotInspectable, true ) ;
+            lcaustic_radius.PutCapabilityFlag( siNotInspectable, true ) ;
+            lcaustic_mix.PutCapabilityFlag( siNotInspectable, true ) ;
+            lao_samples.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lao_distance.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lAOc_red.PutCapabilityFlag( siNotInspectable, true ) ;
 
-        //-- photonmap
-		lbdepth.PutCapabilityFlag( siNotInspectable, true ) ;			
-		lbdiff_photons.PutCapabilityFlag( siNotInspectable, true ) ;	
-		lbcaust_photons.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbdiff_radius.PutCapabilityFlag( siNotInspectable, true ) ;		
-		lbcaust_radius.PutCapabilityFlag( siNotInspectable, true ) ;	
-		lbsearch.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbcaustic_mix.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbfinal_gather.PutCapabilityFlag( siNotInspectable, true ) ; //-->
-		lbfg_bounces.PutCapabilityFlag( siNotInspectable, true );	
-		lbfg_samples.PutCapabilityFlag( siNotInspectable, true );	
-		lbshow_map.PutCapabilityFlag( siNotInspectable, true );
+            //-- photonmap
+		    lbdepth.PutCapabilityFlag( siNotInspectable, true ) ;			
+		    lbdiff_photons.PutCapabilityFlag( siNotInspectable, true ) ;	
+		    lbcaust_photons.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbdiff_radius.PutCapabilityFlag( siNotInspectable, true ) ;		
+		    lbcaust_radius.PutCapabilityFlag( siNotInspectable, true ) ;	
+		    lbsearch.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbcaustic_mix.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbfinal_gather.PutCapabilityFlag( siNotInspectable, true ) ; //-->
+		    lbfg_bounces.PutCapabilityFlag( siNotInspectable, true );	
+		    lbfg_samples.PutCapabilityFlag( siNotInspectable, true );	
+		    lbshow_map.PutCapabilityFlag( siNotInspectable, true );
 				
-        //-- pathtracing
-		ltracer_method.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbpath_depth.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbpath_samples.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbno_recursion.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbuseback.PutCapabilityFlag( siNotInspectable, true ) ;
-		lbpathcaus_photons.PutCapabilityFlag( siNotInspectable, true );
-		lbpathcaus_mix.PutCapabilityFlag( siNotInspectable, true );
-		lbpathcaus_depth.PutCapabilityFlag( siNotInspectable, true );
-		lbpathcaus_radius.PutCapabilityFlag( siNotInspectable, true );
-
-	    //---
-        //--- sppm
-        lbspphotons.PutCapabilityFlag( siNotInspectable, true );
-        lbsppassNums.PutCapabilityFlag( siNotInspectable, true );
-        lbspbounces.PutCapabilityFlag( siNotInspectable, true );
-        lbspdiffuseRadius.PutCapabilityFlag( siNotInspectable, true );
-        lbspsearch.PutCapabilityFlag( siNotInspectable, true );
-        lbsptimes.PutCapabilityFlag( siNotInspectable, true );     
-        lbsppmIRE.PutCapabilityFlag( siNotInspectable, true );      
-
-        //--
+            //-- pathtracing
+		    ltracer_method.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbpath_depth.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbpath_samples.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbno_recursion.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbuseback.PutCapabilityFlag( siNotInspectable, true ) ;
+		    lbpathcaus_photons.PutCapabilityFlag( siNotInspectable, true );
+		    lbpathcaus_mix.PutCapabilityFlag( siNotInspectable, true );
+		    lbpathcaus_depth.PutCapabilityFlag( siNotInspectable, true );
+		    lbpathcaus_radius.PutCapabilityFlag( siNotInspectable, true );
+		 //---
+	
 		if ( vLighting == 0 ) // directlighting
         { 
             lbcaustics.PutCapabilityFlag( siNotInspectable, false ) ;
@@ -814,13 +769,13 @@ void yafaray_dynamic( Parameter changed, PPGEventContext ctxt)
 
 	//----------------------------logic for world ------------------------------------------------
 	  
-    if (( changed.GetName() == L"setworld" )||
-        ( changed.GetName() == L"buse_ibl" )||
-        ( changed.GetName() == L"badd_sun" ))
-    {
-	    vSetworl = prop.GetParameterValue(L"setworld");
-		vUse_ibl = prop.GetParameterValue(L"buse_ibl");
-        vAdd_sun = prop.GetParameterValue(L"badd_sun");
+        if (( changed.GetName() == L"setworld" )||
+             ( changed.GetName() == L"buse_ibl" )||
+             ( changed.GetName() == L"badd_sun" ))
+        {
+			vSetworl = prop.GetParameterValue(L"setworld");
+			vUse_ibl = prop.GetParameterValue(L"buse_ibl");
+            vAdd_sun = prop.GetParameterValue(L"badd_sun");
 		
         //-- single color 
 		Parameter lbsc_red		= prop.GetParameters().GetItem(L"bsc_red");
@@ -868,7 +823,7 @@ void yafaray_dynamic( Parameter changed, PPGEventContext ctxt)
 		lbhorgro_red.PutCapabilityFlag( siNotInspectable, true );
 		lbzengro_red.PutCapabilityFlag( siNotInspectable, true );
 	//-- texture
-		lbHdri.PutCapabilityFlag( siNotInspectable, true ); 
+		lbHdri.PutCapabilityFlag( siNotInspectable, true ); // zenit color
 		lbinterpolate.PutCapabilityFlag( siNotInspectable, true );
 		lbrotation.PutCapabilityFlag( siNotInspectable, true );
         lbmapworld.PutCapabilityFlag( siNotInspectable, true );	
@@ -892,78 +847,78 @@ void yafaray_dynamic( Parameter changed, PPGEventContext ctxt)
 	//---------------->
 
 		if ( vSetworl == 1 )
-        { //-- gradient
-            lbhor_red.PutCapabilityFlag( siNotInspectable, false );
-		    lbzen_red.PutCapabilityFlag( siNotInspectable, false ); 
-			lbhorgro_red.PutCapabilityFlag( siNotInspectable, false );
-			lbzengro_red.PutCapabilityFlag( siNotInspectable, false );
-			lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
-            //--
-			if ( vUse_ibl )
-            {
-				lbibl_power.PutCapabilityFlag( siNotInspectable, false );
-				lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
+            { //-- gradient
+                lbhor_red.PutCapabilityFlag( siNotInspectable, false );
+				lbzen_red.PutCapabilityFlag( siNotInspectable, false ); 
+				lbhorgro_red.PutCapabilityFlag( siNotInspectable, false );
+				lbzengro_red.PutCapabilityFlag( siNotInspectable, false );
+				lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
+                //--
+				if ( vUse_ibl )
+                {
+					lbibl_power.PutCapabilityFlag( siNotInspectable, false );
+					lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
+				}
+                ctxt.PutAttribute(L"Refresh", true);
 			}
-            ctxt.PutAttribute(L"Refresh", true);
-		}
-		else if ( vSetworl == 2 ) 
-		{ // texture
-			lbHdri.PutCapabilityFlag( siNotInspectable, false ); // zenit color
-			lbinterpolate.PutCapabilityFlag( siNotInspectable, false );
-			lbrotation.PutCapabilityFlag( siNotInspectable, false );
-			lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
-            lbmapworld.PutCapabilityFlag( siNotInspectable, false );	
-            //--
-			if ( vUse_ibl )
+			else if ( vSetworl == 2 ) 
+			{ // texture
+				lbHdri.PutCapabilityFlag( siNotInspectable, false ); // zenit color
+				lbinterpolate.PutCapabilityFlag( siNotInspectable, false );
+				lbrotation.PutCapabilityFlag( siNotInspectable, false );
+				lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
+                lbmapworld.PutCapabilityFlag( siNotInspectable, false );	
+                //--
+				if ( vUse_ibl )
+				{
+					lbibl_power.PutCapabilityFlag( siNotInspectable, false );
+					lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
+				}
+                ctxt.PutAttribute(L"Refresh", true);
+			}
+			else if ( vSetworl == 3 ) 
+			{ //-- Sunsky
+				lbturbidity.PutCapabilityFlag( siNotInspectable, false );
+				lbA_horbright.PutCapabilityFlag( siNotInspectable, false );
+				lbB_horsprd.PutCapabilityFlag( siNotInspectable, false );
+				lbC_sunbright.PutCapabilityFlag( siNotInspectable, false );
+				lbD_sunsize.PutCapabilityFlag( siNotInspectable, false );
+				lbE_backlight.PutCapabilityFlag( siNotInspectable, false );
+				lbfrom_angle.PutCapabilityFlag( siNotInspectable, false );	
+				lbx_vect.PutCapabilityFlag( siNotInspectable, false );
+				lby_vect.PutCapabilityFlag( siNotInspectable, false );
+				lbz_vect.PutCapabilityFlag( siNotInspectable, false );
+				lbfrom_update.PutCapabilityFlag( siNotInspectable, false );
+				lbfrom_pos.PutCapabilityFlag( siNotInspectable, false );
+				lbadd_sun.PutCapabilityFlag( siNotInspectable, false ); //--
+				lbskylight.PutCapabilityFlag( siNotInspectable, false );
+				lbw_samples.PutCapabilityFlag( siNotInspectable, false );
+                //--
+                if ( vAdd_sun )
+                {
+                    lbsun_power.PutCapabilityFlag( siNotInspectable, false );
+                }
+                ctxt.PutAttribute(L"Refresh", true);	
+            } 
+			else if ( vSetworl == 4 )
+			{ // darktide
+				lbibl_power.PutCapabilityFlag( siNotInspectable, true );
+				lbibl_samples.PutCapabilityFlag( siNotInspectable, true );
+			//	lbuse_ibl.PutCapabilityFlag( siNotInspectable, true );
+					ctxt.PutAttribute(L"Refresh", true);
+			}
+			else //-- color
 			{
-				lbibl_power.PutCapabilityFlag( siNotInspectable, false );
-				lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
+				lbsc_red.PutCapabilityFlag( siNotInspectable, false );
+				lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
+				if ( vUse_ibl )
+				{
+					lbibl_power.PutCapabilityFlag( siNotInspectable, false );
+					lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
+				}
+                ctxt.PutAttribute(L"Refresh", true);
 			}
-            ctxt.PutAttribute(L"Refresh", true);
-		}
-		else if ( vSetworl == 3 ) 
-		{ //-- Sunsky
-			lbturbidity.PutCapabilityFlag( siNotInspectable, false );
-			lbA_horbright.PutCapabilityFlag( siNotInspectable, false );
-			lbB_horsprd.PutCapabilityFlag( siNotInspectable, false );
-			lbC_sunbright.PutCapabilityFlag( siNotInspectable, false );
-			lbD_sunsize.PutCapabilityFlag( siNotInspectable, false );
-			lbE_backlight.PutCapabilityFlag( siNotInspectable, false );
-			lbfrom_angle.PutCapabilityFlag( siNotInspectable, false );	
-			lbx_vect.PutCapabilityFlag( siNotInspectable, false );
-			lby_vect.PutCapabilityFlag( siNotInspectable, false );
-			lbz_vect.PutCapabilityFlag( siNotInspectable, false );
-			lbfrom_update.PutCapabilityFlag( siNotInspectable, false );
-			lbfrom_pos.PutCapabilityFlag( siNotInspectable, false );
-			lbadd_sun.PutCapabilityFlag( siNotInspectable, false ); //--
-			lbskylight.PutCapabilityFlag( siNotInspectable, false );
-			lbw_samples.PutCapabilityFlag( siNotInspectable, false );
-            //--
-            if ( vAdd_sun )
-            {
-                lbsun_power.PutCapabilityFlag( siNotInspectable, false );
-            }
-            ctxt.PutAttribute(L"Refresh", true);	
-        } 
-		else if ( vSetworl == 4 )
-		{ // darktide
-			lbibl_power.PutCapabilityFlag( siNotInspectable, true );
-			lbibl_samples.PutCapabilityFlag( siNotInspectable, true );
-		//	lbuse_ibl.PutCapabilityFlag( siNotInspectable, true );
-			ctxt.PutAttribute(L"Refresh", true);
-		}
-		else //-- color
-		{
-		    lbsc_red.PutCapabilityFlag( siNotInspectable, false );
-			lbuse_ibl.PutCapabilityFlag( siNotInspectable, false );
-			if ( vUse_ibl )
-			{
-				lbibl_power.PutCapabilityFlag( siNotInspectable, false );
-				lbibl_samples.PutCapabilityFlag( siNotInspectable, false );
-			}
-            ctxt.PutAttribute(L"Refresh", true);
-		}
-	} //-- end setworld
+		} //-- end setworld
 
 	//-- logic for volume integrator 
 	if ( changed.GetName() == L"bVintegrator" ) 
@@ -995,6 +950,7 @@ void yafaray_dynamic( Parameter changed, PPGEventContext ctxt)
     }
 
 }
+
 //--
 XSIPLUGINCALLBACK CStatus YafaRayRenderer_Menu_Init( CRef& in_ctxt )
 {
@@ -1005,47 +961,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_Menu_Init( CRef& in_ctxt )
 	oMenu.AddCallbackItem(L"YafaRay Renderer",L"OnYafaRayRenderer_MenuClicked",oNewItem);
 	return CStatus::OK;
 }
-
 //--
-/*
-XSIPLUGINCALLBACK CStatus OnYafaRayRenderer_MenuClicked( XSI::CRef& )
-{	
-	Application app;
-
-	CValueArray addpropArgs(5) ;
-	addpropArgs[0] = L"YafaRay Renderer"; // Type of Property
-	addpropArgs[3] = L"YafaRay Renderer"; // Name for the Property
-
-//	if ( app.GetSelection().GetCount() == 0 )
-//	{		
-		// No selection so create the object at the scene root
-		addpropArgs[1] = L"Scene_Root";
-//	}
-
-	CValue retVal ;
-	CStatus st = app.ExecuteCommand( L"SIAddProp", addpropArgs, retVal ) ;
-
-	if ( st.Succeeded() )
-	{
-		CValueArray vArray = retVal;
-		CValue newObjects = vArray[0] ;
-
-		CValueArray inspectobjArgs(5) ;	
-		inspectobjArgs[0] = newObjects ; 
-
-		app.ExecuteCommand( L"InspectObj", inspectobjArgs, retVal ) ;
-		return CStatus::OK ;
-	}
-	else
-	{
-		// Wrong kind of object selected
-		return CStatus::Fail;
-	}
-
-}
-*/
-//--
-
 XSIPLUGINCALLBACK CStatus OnYafaRayRenderer_MenuClicked( XSI::CRef& )
 //Implementado; abrir solo una interfaz (from of the last version)
 {	Application app;
@@ -1139,7 +1055,7 @@ void yafaray_integrator(yafrayInterface_t *yi){
 			yi->paramsSetFloat("caustic_radius", vCaust_radius);
         }
     }
-	if (vLighting == 1)
+	else if (vLighting == 1) //-- photonmap
     {
 		yi->paramsSetString("type", "photonmapping");
        	yi->paramsSetInt("fg_samples", vFg_samples);
@@ -1154,31 +1070,23 @@ void yafaray_integrator(yafrayInterface_t *yi){
         yi->paramsSetBool("finalGather", vFinal_gather);
 		yi->paramsSetInt("bounces", vBounces);
     }
-	if (vLighting == 2)
+	else if (vLighting == 2) //-- path
     {
+        //--
+        char A_method [4][7] = {"none", "path", "photon", "both" }; //-- iter vTracer_method
+        bool photons = false;
+        if ( vTracer_method > 1 ) photons = true;
+        string metod;
+        metod = char(A_method[vTracer_method]);
+        //--
 		yi->paramsSetInt("bounces", vPath_depth);
 		yi->paramsSetBool("no_recursive", vNo_recursion);
 		yi->paramsSetInt("path_samples", vPath_samples);
 				
-		bool photons = false;
-		if (vTracer_method == 0 )  //-- none
-        {
-            yi->paramsSetString("caustic_type", "none");
-        }
-        if (vTracer_method == 1 ) //L"path")
-        {
-            yi->paramsSetString("caustic_type", "path");
-        }
-        if (vTracer_method == 2)
-        {
-            yi->paramsSetString("caustic_type", "photon");
-			photons = true;
-        }
-        if (vTracer_method == 3)
-        {
-            yi->paramsSetString("caustic_type", "both");
-			photons = true;
-        }
+	//	if (vTracer_method == 0 )  //-- none// string(A_method[vTracer_method]).c_str()
+    //    {
+        yi->paramsSetString("caustic_type", metod.c_str());
+    
         if (photons) 
         {
             yi->paramsSetInt("photons", vPTCphotons);
@@ -1187,28 +1095,16 @@ void yafaray_integrator(yafrayInterface_t *yi){
 			yi->paramsSetFloat("caustic_radius", vCaust_radius);
         }
         yi->paramsSetString("type", "pathtracing");
-        } // end pathtracing
-		//-- commons values
-		yi->paramsSetInt("raydepth", vRaydepth);
-		yi->paramsSetInt("shadowDepth", vShadows_depth);
-		yi->paramsSetBool("transpShad", vTransp_shad);
-
-	if (vLighting == 3)
+    } 
+    else  //-- vLighting == 3)
     {
         yi->paramsSetString("type", "bidirectional");
     }
-    if ( vLighting == 4 )
-    {
-        yi->paramsSetString("type", "SPPM" );
-        yi->paramsSetInt("bounces", vspbounces ); // int
-        yi->paramsSetFloat("diffuseRadius", vspdiffuseRadius );// float
-        yi->paramsSetInt("passNums", vsppassNums ); //, scene.intg_pass_num) // int
-        yi->paramsSetInt("photons", vspphotons );
-        yi->paramsSetInt("pmIRE", vsppmIRE ); //cene.intg_pm_ire) //-- bool
-        yi->paramsSetInt("search", vspsearch );
-        yi->paramsSetInt("times", vsptimes );// scene.intg_times) // float       
-    }       
-
+    //-- commons values
+		yi->paramsSetInt("raydepth", vRaydepth);
+		yi->paramsSetInt("shadowDepth", vShadows_depth);
+		yi->paramsSetBool("transpShad", vTransp_shad);
+        //--
 	yi->createIntegrator("default");
 }
 //--
@@ -1229,6 +1125,7 @@ void yafaray_volume_integrator(yafrayInterface_t *yi)	//----/ volume integrator 
 	}
 	yi->createIntegrator("volintegr");
 }
+
 //--
 void yafaray_cam(yafrayInterface_t *yi, X3DObject obj_cam){
 
@@ -1300,28 +1197,25 @@ void yafaray_cam(yafrayInterface_t *yi, X3DObject obj_cam){
     //--	
 }
 //--
-//int yafaray_light(yafrayInterface_t *yi, X3DObject o)
-void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
+int yafaray_light(yafrayInterface_t *yi, X3DObject o)
 {
-	
+	//--- values ---->
+ //   X3DObject o;
+     
 	yi->paramsClearAll();
 	//--
 	float a=0, b=0, c=0, alpha=0;
-	CRefArray shad(Light(o_light).GetShaders());
-    int num_luz = shad.GetCount();
-    app.LogMessage(L" numero de shaders en la luz: "+ CString(num_luz));
-
-	Shader s((Light(o_light).GetShaders())[0]);
-	OGLLight myOGLLight(Light(o_light).GetOGLLight());
-  
+	CRefArray shad(Light(o).GetShaders());
+	Shader s((Light(o).GetShaders())[0]);
+	OGLLight myOGLLight(Light(o).GetOGLLight());
 	s.GetColorParameterValue(L"color",a,b,c,alpha );
 	//CString lName = findInGroup(o.GetName());
 	//----/ transforms /---->
-	KinematicState  gs = o_light.GetKinematics().GetGlobal();
+	KinematicState  gs = o.GetKinematics().GetGlobal();
 	CTransformation gt = gs.GetTransform();
 	//----
 	X3DObject li; 
-	li= X3DObject(o_light.GetParent()).GetChildren()[1];
+	li= X3DObject(o.GetParent()).GetChildren()[1];
 	KinematicState  gs2 = li.GetKinematics().GetGlobal();
 	CTransformation gt2 = gs2.GetTransform();
 	//---
@@ -1335,9 +1229,9 @@ void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
 	from_Y = -vLightFrom.GetZ();	to_Y = -vSpotTo.GetZ();
 	from_Z = vLightFrom.GetY();		to_Z = vSpotTo.GetY();
 	//---
-    float vLightCone = o_light.GetParameterValue(L"LightCone");
+    float vLightCone = o.GetParameterValue(L"LightCone");
 	float vIntensity = s.GetParameterValue(L"intensity");
-    string light_name = o_light.GetName().GetAsciiString();
+    string light_name = o.GetName().GetAsciiString();
 	
 	//-- commons params for all lights; name,  from, target(to) 
 	yi->paramsSetColor("color", a, b, c );
@@ -1347,7 +1241,7 @@ void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
 
 	//--
 	CString light_type; 
-	string::size_type loc = string(CString(o_light.GetName()).GetAsciiString()).find( "IES", 0 );
+	string::size_type loc = string(CString(o.GetName()).GetAsciiString()).find( "IES", 0 );
 	if (loc != string::npos)
     {
 	    light_type = L"IES";
@@ -1375,7 +1269,7 @@ void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
 	
 	} else if ( myOGLLight.GetType() == siLightInfinite ) {
 		//-- sun light
-		CMatrix4 sunTransMat = o_light.GetKinematics().GetLocal().GetTransform().GetMatrix4();
+		CMatrix4 sunTransMat = o.GetKinematics().GetLocal().GetTransform().GetMatrix4();
 		double sun_X = sunTransMat.GetValue(2,0); 
 		double sun_Y = -sunTransMat.GetValue(2,2); 
 		double sun_Z = sunTransMat.GetValue(2,1);
@@ -1387,9 +1281,9 @@ void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
 	}  //-- point light
     else
     {
-        bool vSiArealight = o_light.GetParameterValue(L"LightArea");
-	    bool vSiArea_vis = o_light.GetParameterValue(L"LightAreaVisible");
-	    int vlight_geo = o_light.GetParameterValue(L"LightAreaGeom");
+        bool vSiArealight = o.GetParameterValue(L"LightArea");
+	    bool vSiArea_vis = o.GetParameterValue(L"LightAreaVisible");
+	    int vlight_geo = o.GetParameterValue(L"LightAreaGeom");
 	    //--
 	    if (vSiArealight == true) 
         {
@@ -1411,10 +1305,13 @@ void  yafaray_light(yafrayInterface_t *yi, X3DObject o_light)
         else 
         { 
 		    yi->paramsSetString("type", "pointlight");
-        }   
+        }
+   
+	//--
+	yi->createLight(light_name.c_str());	
     }
-    yi->printInfo("YafaRay Exporter create Light: "+ light_name );
-	yi->createLight(light_name.c_str());	   
+   
+	return 0;
 }
 //--
 void yafaray_texture(yafrayInterface_t *yi)
@@ -1427,11 +1324,11 @@ void yafaray_texture(yafrayInterface_t *yi)
 	CRefArray materials = matlib.GetItems();
     	
     for ( LONG i=0; i < materials.GetCount(); i++ ) 
-    {  //-- materials into scene
+    {   
         Texture vTexture;       //....
 		CString vFileBump=L"";	//----/ file  for bump chanel only /----------->
 		CString vFile_tex_name; // local variable
-        CString vTexType = L"";
+		CString vTexType;
         
         ImageClip2 vBumpFile;
 		Shader vBumpTex;
@@ -1439,8 +1336,7 @@ void yafaray_texture(yafrayInterface_t *yi)
 		bool vIsSubD=true,vNorm=false;
 		
         Material m( materials[i] );
-       
-		if ( (int)m.GetUsedBy().GetCount()==0) 
+        if ( (int)m.GetUsedBy().GetCount()==0) 
         {
 			continue;
 		}
@@ -1451,12 +1347,12 @@ void yafaray_texture(yafrayInterface_t *yi)
 		char sname[256];
 		strcpy(sname,m.GetName().GetAsciiString());
         vText = false;
+        //--
         char A_proc [4] [7]={"none", "clouds", "marble", "wood"};
         int vproced = 0;
-    
         //-- texture values 
 		CRefArray mat_shaders = m.GetShaders();
-		for (int i=0;i<mat_shaders.GetCount();i++)
+		for (int i=0;i<mat_shaders.GetCount();i++) 
         { //-- shaders connect to material
 			CRefArray mat_textures = Shader(mat_shaders[i]).GetShaders();
 			for (int j=0;j<mat_textures.GetCount();j++)
@@ -1516,7 +1412,7 @@ void yafaray_texture(yafrayInterface_t *yi)
                     // if  noise_size > 0: noise_size = 1.0/noise_size
                     yi->paramsSetFloat("size", 4);
                     // if tex.noise_type == 'HARD_NOISE' :
-                    yi->paramsSetBool("hard", false);
+                    yi->paramsSetBool("hard", false);                                                   
                     yi->paramsSetInt("depth", 2);
 
                     // textureConfigured = True
@@ -1624,7 +1520,7 @@ void yafaray_texture(yafrayInterface_t *yi)
                 texMap[tex_name.c_str()]= tex;
             }
         }
-     }
+    }
 
 	/*
         elif tex.type == 'VORONOI':
@@ -1763,7 +1659,14 @@ void yafaray_material(yafrayInterface_t *yi)
 			aMatList.Add(m.GetName());
 		}
         //--
-        string layer_name ;
+        mat_name = string ( m.GetName().GetAsciiString());
+        map_name = mat_name + "_map";
+        string t_name = mat_name + "_tex";
+        tex_name = texMap.find(t_name.c_str())->first;
+        app.LogMessage( tex_name.c_str());
+        // mat = mMap.find(mat_name.c_str())->second;
+
+        string layer_name ; 
         int n_lay = 0;
         string diffRoot, bumpRoot, mircolRoot, mirrRoot, transluRoot, transpRoot, glossRoot, glossrefRoot, filtcolRoot;
 		//--
@@ -1793,14 +1696,14 @@ void yafaray_material(yafrayInterface_t *yi)
                 yi->paramsSetString("type", "glass");
             }
             //-- layers
-            if ((bool)s.GetParameterValue(L"ch_color")== true)
+            if ((bool)s.GetParameterValue(L"diff_layer")== true)
             {
                 layer_name = "diff_layer";
                 yi->paramsSetString("diffuse_shader", "diff_layer");
                 n_lay++;
                 diffRoot = layer_name;
             }
-		    if ((bool)s.GetParameterValue(L"ch_norm") == true) 
+		    if ((bool)s.GetParameterValue(L"bump_layer") == true) 
             {
 	    	    layer_name = "bump_layer";
                 yi->paramsSetString("bump_shader", "bump_layer");
@@ -1839,7 +1742,7 @@ void yafaray_material(yafrayInterface_t *yi)
                 yi->paramsSetString("type", "glossy");
             }
 	        //-- shaders
-	        if ((bool)s.GetParameterValue(L"ch_color")== true)
+	        if ((bool)s.GetParameterValue(L"diff_layer")== true)
             {
                 layer_name = "diff_layer";
                 yi->paramsSetString("diffuse_shader", "diff_layer");
@@ -1861,7 +1764,7 @@ void yafaray_material(yafrayInterface_t *yi)
                 glossRoot = layer_name;
                 //-
 		    } 
-	        if ((bool)s.GetParameterValue(L"ch_norm") == true) 
+	        if ((bool)s.GetParameterValue(L"bump_layer") == true) 
             {
 	    	    layer_name = "bump_layer";
                 yi->paramsSetString("bump_shader", "bump_layer");
@@ -1894,21 +1797,21 @@ void yafaray_material(yafrayInterface_t *yi)
 		    yi->paramsSetFloat("transparency", float(s.GetParameterValue(L"transparency")));
 		
             //-- layers
-		    if ((bool)s.GetParameterValue(L"ch_color")== true)
+		    if ((bool)s.GetParameterValue(L"diff_layer")== true)
             {
                 layer_name = "diff_layer";
                 yi->paramsSetString("diffuse_shader", "diff_layer");
                 diffRoot = layer_name;
                 n_lay++;
             } 
-		    if ((bool)s.GetParameterValue(L"ch_mirror")==true)
+		    if ((bool)s.GetParameterValue(L"mircol_layer")==true)
             {
                 layer_name = "mircol_layer";
                 yi->paramsSetString("mirror_color_shader", "mircol_layer"); 
                 mircolRoot = "mircol_layer";
                 n_lay++;
             }
-    	    if ((bool)s.GetParameterValue(L"ch_raymir")==true) 
+    	    if ((bool)s.GetParameterValue(L"mirr_layer")==true) 
             {
                 layer_name = "mirr_layer";
                 yi->paramsSetString("mirror_shader", "mirr_layer");
@@ -1922,7 +1825,7 @@ void yafaray_material(yafrayInterface_t *yi)
                 transluRoot = layer_name;
                 n_lay++;
 		    } 
-		    if ((bool)s.GetParameterValue(L"ch_norm") == true) 
+		    if ((bool)s.GetParameterValue(L"bump_layer") == true) 
             {
 	    	    layer_name = "bump_layer";
                 yi->paramsSetString("bump_shader", "bump_layer");
@@ -1985,14 +1888,14 @@ void yafaray_material(yafrayInterface_t *yi)
                 { 
                     app.LogMessage( L" end layers\n");
                 }
-                string map_name(m.GetName().GetAsciiString());
-                map_name += string(CString(k).GetAsciiString());
+            
+                
+                //string map_name = mat_name;
+                //+= string(CString(k).GetAsciiString());
                 
                 yi->paramsPushList();
                 if ( d_color == true ){
                     yi->paramsSetFloat("colfac", float(s.GetParameterValue(L"infl_color")));// chcolor 
-                } else {
-                    yi->paramsSetFloat("valfac", float(s.GetParameterValue(L"ovar"))); // other var
                 }
 	            yi->paramsSetBool("color_input", is_image); // TODO; is Image or voronoi
 			    s.GetColorParameterValue(L"def_col",red,green,blue,alpha );
@@ -2010,9 +1913,12 @@ void yafaray_material(yafrayInterface_t *yi)
 		        yi->paramsSetBool("noRGB", bool(s.GetParameterValue(L"nrgb")));
 		        yi->paramsSetBool("stencil", bool(s.GetParameterValue(L"stencil")));  
     			
-			    s.GetColorParameterValue(L"color",red,green,blue,alpha );
-		        yi->paramsSetColor("upper_color", red, green, blue, alpha);
+			    s.GetColorParameterValue(L"diffuse_color",red,green,blue,alpha );
+		        yi->paramsSetColor("upper_color", red, green, blue, 1.0);
 		        yi->paramsSetFloat("upper_value", 1.0f); // TODO;
+                if (d_scalar){
+                    yi->paramsSetFloat("valfac", float(s.GetParameterValue(L"dvar"))); // other var
+                }
 		        yi->paramsSetBool("use_alpha", bool(s.GetParameterValue(L"use_alpha")));
                 yi->paramsEndList();
   			
@@ -2065,9 +1971,8 @@ void yafaray_material(yafrayInterface_t *yi)
      }
 }     	
 //--
-int yafaray_object(yafrayInterface_t *yi, X3DObject o )
-{
-    // Writes objects
+int yafaray_object(yafrayInterface_t *yi, X3DObject o ){
+		// Writes objects
 	CScriptErrorDescriptor status ;
 	CValueArray fooArgs(1) ;
 	fooArgs[0] = L"" ;
@@ -2083,13 +1988,13 @@ int yafaray_object(yafrayInterface_t *yi, X3DObject o )
     mat_name = string(oMat.GetAsciiString()).c_str();
    
 	//----/ search for texture image map ( UV data ) /---->
-	CRefArray vImags=m.GetShaders();
-	for (int i=0;i<vImags.GetCount();i++)
+	CRefArray mat_shaders=m.GetShaders();
+	for (int i=0;i<mat_shaders.GetCount();i++)
     {
-		CRefArray vImags2=Shader(vImags[i]).GetShaders();
-		for (int j=0;j<vImags2.GetCount();j++)
+		CRefArray mat_textures=Shader(mat_shaders[i]).GetShaders();
+		for (int j=0;j<mat_textures.GetCount();j++)
         {
-			CString vWhat((Shader(vImags2[j]).GetProgID()).Split(L".")[1]);
+			CString vWhat((Shader(mat_textures[j]).GetProgID()).Split(L".")[1]);
 			if (vWhat==L"txt2d-image-explicit" || vWhat==L"Softimage.txt2d-image-explicit.1")
             {
 				vText=true;
@@ -2188,8 +2093,8 @@ int yafaray_object(yafrayInterface_t *yi, X3DObject o )
     if ((vSmooth_mesh==true)&&(vIsSubD==false)) { vAngle=90;} // if false, vAngle=0, not smooth
 	if ((vSmooth_mesh==true)&&(vIsSubD==true)) { vAngle=181;} // maxim smooth
 			
-		yi->endTriMesh();
-		yi->smoothMesh(0, vAngle);
+	    yi->endTriMesh();
+	    yi->smoothMesh(0, vAngle);
         yi->endGeometry();
 	return 0;
 }
@@ -2401,67 +2306,64 @@ int api_yaf()
     if ( out_type == "xml_file" )
     {
 	    yi = new xmlInterface_t();
-    } 
-    else // "H:/users/Pedro/Autodesk/Softimage_7.5/Addons/YafaRay/Application/bin/plugins"
+    }
+    else
     {
         yi = new yafrayInterface_t();
-        CString addon_path = app.GetInstallationPath(siUserAddonPath);
-        addon_path += L"/YafaRay/Application/bin/plugins";
-       // string plugins_path = string(addon_path.GetAsciiString()).c_str();
-
-        yi->loadPlugins("H:/users/Pedro/Autodesk/Softimage_7.5/Addons/YafaRay/Application/bin/plugins"); 
-   }
-   
+	    yi->loadPlugins(string("C:/Yafaray/msvc/plugins").c_str()); //you may call loadPlugins with additional paths
+    }
+    
+	
     //first of all, start scene
 	yi->startScene();
-    X3DObject o;
+    
+
 	// create arrays of objects --------->
-	CRefArray root_array, aYaflight, aMesh, aCam; // create a ref array object.
+	CRefArray array, aYaflight, aMesh, aCam; // create a ref array object.
 	CStringArray emptyArray;
     //--- cleaning arrays
 	emptyArray.Clear();
-	root_array.Clear();
+	array.Clear();
 	aYaflight.Clear();
 	aMesh.Clear();
     aCam.Clear();
 	aMatList.Clear();
 		
 	// detecting visibility of elements to scene -->
-	root_array += root.FindChildren2( L"", L"", emptyArray, true );
-	for ( int i=0; i < root_array.GetCount();i++ )
+	array += root.FindChildren( L"", L"", emptyArray, true );
+	for ( int i=0; i < array.GetCount();i++ )
     {
-	    o = root_array[i];
+	    X3DObject o(array[i]);
         
 		//--
 		Property visi=o.GetProperties().GetItem(L"Visibility");
 		if (o.GetType()==L"light")
         {
-		//	if (vIsHiddenLight || (vIsHiddenLight == false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
-        //    {
+			if (vIsHiddenLight || (vIsHiddenLight == false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
+            {
                 aYaflight.Add(o);	// visibilty check
-        //    }
+            }
         }
-        
 		if (o.GetType()==L"polymsh")
         {
-		//	if (vIsHiddenObj || (vIsHiddenObj == false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true))) 
-        //    {
+			if (vIsHiddenObj || (vIsHiddenObj == false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true))) 
+            {
                 aMesh.Add(o);	// visibilty check
-        //    }
+            }
         }
 		if (o.GetType()==L"CameraRoot")
         {
-		//    if (vIsHiddenCam || (vIsHiddenCam==false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
-        //    {
+		    if (vIsHiddenCam || (vIsHiddenCam==false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
+            {
                 aCam.Add(o);	// visibilty check
-        //    }
+            }
         }
 		if (o.GetType()==L"camera" && X3DObject(o.GetParent()).GetType()!=L"CameraRoot")
         {
-        //    if (vIsHiddenCam || (vIsHiddenCam==false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
-        //    {
+            if (vIsHiddenCam || (vIsHiddenCam==false && ((bool)visi.GetParameterValue(L"viewvis")==true && (bool)visi.GetParameterValue(L"rendvis")==true)))
+            {
                 aCam.Add(o);	// visibilty check
-        //    }
+            }
         } 
     } 
 
@@ -2488,8 +2390,7 @@ int api_yaf()
 	for (int i=0; i < aYaflight.GetCount(); i++)
     {
 		yafaray_light(yi, aYaflight[i]);
-//    yafaray_light(yi);
-        pb.Increment(2); //-- test
+  //      pb.Increment(2); //-- test
     }
 
 	// create geometry ------------------> funciona 2011 / 7.5
@@ -2523,7 +2424,7 @@ int api_yaf()
 	yafaray_volume_integrator(yi);
 
 	// create output -------------------->
-  /*  // colorOutput_t *output = NULL;
+    // colorOutput_t *output = NULL;
     if ( out_type == "xml_file" )
     {
 	   yi->paramsClearAll();
@@ -2539,7 +2440,7 @@ int api_yaf()
    //    if(!(output = new imageOutput_t(ih, out_name, 0, 0))) return 1; 
    //   output = new imageOutput_t(ih, out_name, 0, 0);
     }
-	*/ // create render -------------------->
+	// create render -------------------->
     yi->printInfo("Exporter: Creating render .....");// 2011
 			yafaray_render(yi);
 	
@@ -2548,7 +2449,8 @@ int api_yaf()
     
     //--
     if ( out_type == "gui" )
-    {   // settings for Qt gui
+    {   
+        // settings for Qt gui
         Settings mysettings; 
 		mysettings.autoSave = false;
 		mysettings.autoSaveAlpha = false;
@@ -2560,7 +2462,7 @@ int api_yaf()
 		//---
     }
     if ( out_type == "xml_file" )
-    {   
+    {   //-- save image
 	//	yi->render(*output);
     }
 	yi->clearAll();
