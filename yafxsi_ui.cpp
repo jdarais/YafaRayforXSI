@@ -1,8 +1,8 @@
 /*
 This file is part of YafXSI.
-YafaRay Exporter addon for Autodesk(c) Softimage(c).
+YafaRay Exporter for Autodesk(c) Softimage(c).
 
-Copyright (C) 2010 2011  Pedro Alcaide aka povmaniaco
+Copyright (C) 2010 2011  Pedro Alcaide, aka povmaniaco
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+#pragma warning (disable : 4244) 
+#pragma warning (disable : 4996) 
+//--
 
-#include "stdafx.h"
+#include "yafxsi_main.h"
 
 using namespace XSI;
-using namespace std;
+//using namespace std;
 
 
 XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
@@ -64,8 +67,8 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 	//		item.PutAttribute( siUIFileFilter, L"YafXSI Scenes|*.xml" ) ;
 	//	lay.EndGroup();
 
-//			lay.AddItem(L"vYafPath",L"Path to YafaRay",siControlFilePath);
-//		    PPGItem itm = lay.GetItem( L"vYafPath" );
+//			lay.AddItem(L"bplugin_path",L"Path to YafaRay",siControlFilePath);
+//		    PPGItem itm = lay.GetItem( L"bplugin_path" );
 //			itm.PutAttribute( siUIOpenFile, 1 ) ;
 //			itm.PutAttribute( siUIFileMustExist, 1 ) ;
 //			itm.PutAttribute( siControlFilePath , "test" ) ;
@@ -73,12 +76,12 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 	//----/ Buttons.. /---->
 		    lay.AddRow();
 				lay.AddButton(L"export_xml",L"Export to XML");
-				lay.AddButton(L"render_YafXSI",L"Render console");
 				lay.AddButton(L"render_qtgui",L"Render YafaRay UI");
+                lay.AddButton(L"done_addon",L"Done");
 			lay.EndRow();
 	//----------------------//
 	lay.AddTab(L"Specials"); 
-        //----------------------//
+    //----------------------//
 		lay.AddGroup(L"Lights..");
 			lay.AddSpacer(10,2);
 			lay.AddItem(L"bIES_file",L"IES file path",siControlFilePath);
@@ -171,7 +174,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 		lay.AddGroup(L" Volume integrator ");
 
 			CValueArray aV_intg(4);
-				aV_intg[0] = L"None" ;			aV_intg[1] = 0;
+				aV_intg[0] = L"None" ;				aV_intg[1] = 0;
 				aV_intg[2] = L"Single Scatter" ;	aV_intg[3] = 1;
 			lay.AddEnumControl( L"bVintegrator", aV_intg, L"Volume Integrator", siControlCombo ) ;
 			//----/ scatter /---->
@@ -187,24 +190,24 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 	//----/ Buttons row /----->
 			lay.AddRow();
 				lay.AddButton(L"export_xml",L"Export to XML");
-				lay.AddButton(L"render_YafXSI",L"Render console");
 				lay.AddButton(L"render_qtgui",L"Render YafaRay UI");
+                lay.AddButton(L"done_addon",L"Done");
 			lay.EndRow();
 	//------------------------//
 	lay.AddTab(L"Lighting "); 
 	//------------------------//
-	    lay.AddGroup(L"Lighting method"); //-- grupo lighting --->
-			CValueArray iTlight_ps(8);
-				iTlight_ps[0] = L"Direct Lighting"	   ; iTlight_ps[1] = 0;
-				iTlight_ps[2] = L"Photon Map"		   ; iTlight_ps[3] = 1;
-				iTlight_ps[4] = L"Path Tracing"		   ; iTlight_ps[5] = 2;
-				iTlight_ps[6] = L"Bidirectional (EXP)" ; iTlight_ps[7] = 3;
-			lay.AddEnumControl(L"blighting",iTlight_ps,L"Lighting Modes",siControlCombo ) ;
-			
-        lay.AddGroup(); // general, no-label
+			lay.AddGroup(L"Lighting method"); //-- grupo lighting --->
+				CValueArray iTlight_ps(10);
+					iTlight_ps[0] = L"Direct Lighting"	   ; iTlight_ps[1] = 0;
+					iTlight_ps[2] = L"Photon Map"		   ; iTlight_ps[3] = 1;
+					iTlight_ps[4] = L"Path Tracing"		   ; iTlight_ps[5] = 2;
+					iTlight_ps[6] = L"Bidirectional (EXP)" ; iTlight_ps[7] = 3;
+                    iTlight_ps[8] = L"SPPM"                ; iTlight_ps[9] = 4;
+				lay.AddEnumControl(L"blighting",iTlight_ps,L"Lighting Modes",siControlCombo ) ;
+			lay.AddGroup(); // general, no-label
 		
 	        //-- directlighting
-		lay.AddGroup(L"Caustics"); //(-- grupo caustic --->
+			lay.AddGroup(L"Caustics"); //(-- grupo caustic --->
 				lay.AddItem(L"bcaustics", L"Use Caustics");
 			lay.AddRow();
 				lay.AddItem(L"bDLCphotons"   , L"C.Photons");
@@ -271,6 +274,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 				lay.AddItem(L"buseback",L"Use Background");
 				lay.AddItem(L"bno_recursion",L"No Recursion");
 			lay.EndRow();
+           
             //--- SPPM
             lay.AddItem(L"bspphotons", L"Photons").PutLabelPercentage(60);
             lay.AddItem(L"bsppassNums", L"Passes").PutLabelPercentage(60);
@@ -280,14 +284,14 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
             lay.AddItem(L"bsptimes", L"Radius Factor").PutLabelPercentage(60);      
             lay.AddItem(L"bsppmIRE", L"PM IRE").PutLabelPercentage(60);
             //---
-        lay.EndGroup();
-    lay.EndGroup(); // lighting method
+            lay.EndGroup();
+	    lay.EndGroup(); // lighting method
 
         //-- buttons
 			lay.AddRow();
 				lay.AddButton(L"export_xml",L"Export to XML");
-				lay.AddButton(L"render_YafXSI",L"Render console");
 				lay.AddButton(L"render_qtgui",L"Render YafaRay UI");
+                lay.AddButton(L"done_addon",L"Done");
 			lay.EndRow();
 
 	//-----------------------//
@@ -368,8 +372,8 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 	//----/ Buttons row /----->
 			lay.AddRow();
 				lay.AddButton(L"export_xml",L"Export to XML");
-				lay.AddButton(L"render_YafXSI",L"Render console");
 				lay.AddButton(L"render_qtgui",L"Render YafaRay UI");
+                lay.AddButton(L"done_addon",L"Done");
 			lay.EndRow();
 			
 	
