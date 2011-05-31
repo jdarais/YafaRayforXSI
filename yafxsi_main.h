@@ -1,6 +1,6 @@
 /*
 This file is part of YafXSI.
-YafaRay Exporter addon for Autodesk(c) Softimage(c).
+YafaRay Exporter for Autodesk(c) Softimage(c).
 
 Copyright (C) 2010 2011  Pedro Alcaide aka povmaniaco
 
@@ -16,7 +16,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 #pragma once
@@ -82,7 +81,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <xsi_primitive.h>
 #include <xsi_x3dobject.h>
 
-
 // yafaray
 #include <yafray_config.h>
 #include <interface/yafrayinterface.h>
@@ -97,8 +95,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdlib> // for yafrayinterface ?
 #include <fstream>
 #include <string.h>
+//--
 
-//
+//--
+
 #if defined(_WIN32) || defined(_WIN64)
 	#include <windows.h>
 	#include <winioctl.h>
