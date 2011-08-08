@@ -112,13 +112,13 @@ float vHorgro_red = 1.0f, vHorgro_green = 1.0f, vHorgro_blue = 1.0f, vHorgro_alp
 float vZengro_red = 1.0f, vZengro_green = 1.0f, vZengro_blue = 1.0f, vZengro_alpha = 1.0f;
 
 //-- texture background
-bool vUse_interp = false;
+bool vUse_interp = false, vW_caust = false, vW_diff = false;
 int vW_samples = 8, vrotation = 0;
 int vmapworld = 0;
 
 //-- hiddend objects --->
 bool vIsHiddenCam = true, vIsHiddenLight = true, vIsHiddenObj = true;
-bool vIsHiddenSurfaces = true, vIsHiddenClouds = false;
+bool vIsHiddenSurfaces = false, vIsHiddenClouds = false;
 //--
 bool vIsLinux = true, vProg = true, vIsCaustic = false, vSmooth_mesh = false;
 bool vAmbBack = false, vExportDone = false;
