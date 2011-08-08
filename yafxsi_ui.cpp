@@ -58,14 +58,15 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 			lay.AddItem(L"use_hidden_obj", L"Objects");
 			lay.AddItem(L"use_hidden_cam", L"Cameras");
 			lay.AddItem(L"bhidden_light", L"Lights");
+            lay.AddItem(L"use_hidden_surf", L"Surfaces");
 			lay.AddItem(L"smooth_mesh", L"Export smooth meshes");
 		lay.EndGroup();
 	//----/ saves.. /---->
-	//	lay.AddGroup(L"Save XML");
-	//		lay.AddItem(L"fObjects",L"File export",siControlFilePath);
-	//		item = lay.GetItem( L"fObjects" );
-	//		item.PutAttribute( siUIFileFilter, L"YafXSI Scenes|*.xml" ) ;
-	//	lay.EndGroup();
+		lay.AddGroup(L"Save XML");
+			lay.AddItem(L"fObjects",L"File export",siControlFilePath);
+			item = lay.GetItem( L"fObjects" );
+			item.PutAttribute( siUIFileFilter, L"YafXSI Scenes|*.xml" ) ;
+		lay.EndGroup();
 
 //			lay.AddItem(L"bplugin_path",L"Path to YafaRay",siControlFilePath);
 //		    PPGItem itm = lay.GetItem( L"bplugin_path" );
@@ -84,13 +85,22 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
     //----------------------//
 		lay.AddGroup(L"Lights..");
 			lay.AddSpacer(10,2);
-			lay.AddItem(L"bIES_file",L"IES file path",siControlFilePath);
+			lay.AddItem(L"bIES_file",L"IES file path", siControlFilePath);
 				item = lay.GetItem( L"bIES_file" ); 
 				item.PutAttribute( siUIOpenFile, 1 ) ;
 				item.PutAttribute( siUIFileMustExist, 1 ) ;
 				item.PutAttribute( siUIFileFilter, L"IES files|*.ies" ) ; // probas
 				item.PutAttribute( siControlFilePath , "test" ) ;
 		lay.EndGroup();
+        //--
+        lay.AddGroup( L"Camera");
+            CValueArray vbokeh(6);
+				vbokeh[0] = L"Disk 1"	; vbokeh[1] = 0;
+				vbokeh[2] = L"Disk 2"	; vbokeh[3] = 1;
+				vbokeh[4] = L"Hexagon"	; vbokeh[5] = 2;
+            lay.AddEnumControl(L"bokeh_type", vbokeh, L"Bokeh type", siControlCombo);
+            lay.AddItem(L"bokeh_rotation", L"Bokeh Rotation");
+        lay.EndGroup();
 	
 	//--------------------//
 	lay.AddTab(L"World"); 
@@ -102,7 +112,7 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 				vWorld[4] = L"Texture"		; vWorld[5] = 2;
 				vWorld[6] = L"Sunsky"		; vWorld[7] = 3;
 				vWorld[8] = L"DarkTide's SunSky" ; vWorld[9] = 4;
-			item = lay.AddEnumControl(L"setworld", vWorld, L"Background", siControlCombo);
+			lay.AddEnumControl(L"setworld", vWorld, L"Background", siControlCombo);
 		lay.AddSpacer(0,10); // for test		
 		
 		//----/ Gradient /----------->
@@ -122,10 +132,14 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 				item.PutAttribute( siControlFilePath , "test" ) ;
 			lay.AddItem( L"brotation", L"Rotation ");
 			lay.AddItem( L"binterp", L"Use Interpolate ");
+            lay.AddRow();
+            lay.AddItem( L"bw_caust", L"With Caustic");
+            lay.AddItem( L"bw_diff", L"With Diffuse");
+            lay.EndRow();
             CValueArray mppWorld(4);
 				mppWorld[0] = L"Angular Map"; mppWorld[1] = 0;
 				mppWorld[2] = L"Sphere"		; mppWorld[3] = 1;
-            lay.AddEnumControl(L"bmapworld",mppWorld,L"Mapping type", siControlCombo );
+            lay.AddEnumControl(L"bmapworld",mppWorld,L"Mapping type", siControlCombo ).PutLabelPercentage(60);
 		
 		lay.EndGroup();
 						
@@ -154,7 +168,36 @@ XSIPLUGINCALLBACK CStatus YafaRayRenderer_DefineLayout( CRef& in_ctxt )
 			lay.AddItem(L"badd_sun",L"Add Sun");
 			lay.AddItem(L"bsun_power",L"Sun power");
 		lay.EndGroup(); //-- sunsky
-		
+            //------------->
+        /*//----/ darksky /------->
+		lay.AddGroup(L"Darktide Sky");	
+			lay.AddItem(L"b_turbidity", L"Turbidity");
+            lay.AddItem(L"b_a_var", L"Brightness of horizon gradient");
+            lay.AddItem(L"b_b_var", L"Luminance of horizon");
+            lay.AddItem(L"b_c_var", L"Solar region intensity");
+            lay.AddItem(L"b_d_var", L"Width of circumsolar region");
+            lay.AddItem(L"b_e_var", L"Backscattered light");
+
+            lay.AddItem(L"world.get_position", L"Get Position");
+            lay.AddItem(L"world.get_angle", L"Get Angle");
+            col.operator("world.update_sun", L"Update Sun");
+
+            lay.AddItem(L"b_from", L"From");
+            lay.AddItem(L"b_dsaltitude", L"Altitude");
+            lay.AddItem(L"b_add_sun", L"Add Sun");
+
+            lay.AddItem(L"b_sun_power", L"Sun Power");
+            lay.AddItem(L"b_background_light", L"Add Skylight");
+
+            lay.AddItem(L"b_dsnight", L"Night");
+
+            lay.AddItem(L"b_dsbright", L"Sky Brightness");
+            lay.AddItem(L"b_light_samples", L"Samples");
+            lay.AddItem(L"b_exposure", L"Exposure");
+            lay.AddItem(L"b_clamp_rgb", L"Clamp RGB");
+            lay.AddItem(L"b_gamma_enc", L"Gamma Encoding");
+		lay.EndGroup(); //-- darktide sky
+		*/
 		//----/ Single color /------>
 		lay.AddGroup(L"Single color");
 			lay.AddColor( L"bsc_red", L"Color" ) ;
