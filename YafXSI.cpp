@@ -1979,7 +1979,7 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi){
 
     //---
     CGeometryAccessor in_ga;
-	siConstructionMode constMode = (siConstructionModeModeling);
+	siConstructionMode constMode = (siConstructionModeSecondaryShape);
 	siSubdivisionRuleType subdType = (siCatmullClark);
 	in_ga = PolygonMesh(g).GetGeometryAccessor( constMode, subdType, subdLevel ); 
 	//--
@@ -2001,8 +2001,10 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi){
 	LONG valCount = vtxPos.GetCount();
     for ( LONG i=0;  i < valCount;  )
     {
-        size_t x = i++, z = i++, y = i++;
-		yi->addVertex(vtxPos[x], -vtxPos[y], vtxPos[z]); 
+        size_t x = i++, y = i++, z = i++;
+		CVector3 absVtxPos( vtxPos[x], vtxPos[y], vtxPos[z] );
+		absVtxPos.MulByTransformationInPlace( gt );
+		yi->addVertex(absVtxPos[0], -absVtxPos[2], absVtxPos[1]); 
     }
     //--
 	CRefArray uvs = in_ga.GetUVs();
