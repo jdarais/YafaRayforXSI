@@ -99,11 +99,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //--
 
+
+
+
 #if defined(_WIN32) || defined(_WIN64)
+	// Excluir material rara vez utilizado de encabezados de Windows
+	#define WIN32_LEAN_AND_MEAN 
+
 	#include <windows.h>
 	#include <winioctl.h>
 #endif
-
-
-// Excluir material rara vez utilizado de encabezados de Windows
-#define WIN32_LEAN_AND_MEAN 

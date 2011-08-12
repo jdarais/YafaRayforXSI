@@ -27,7 +27,7 @@ using namespace yafaray;
 using namespace std;
 
 //--
-int yaf_export();
+int yaf_export(double time = DBL_MAX);
 //--
 void yafaray_execute();
 //--
@@ -44,6 +44,7 @@ XSIPLUGINCALLBACK CStatus XSILoadPlugin( PluginRegistrar& in_reg )
 	in_reg.PutVersion(0,1);
 	in_reg.RegisterProperty(L"YafaRay Renderer");
 	in_reg.RegisterMenu(siMenuTbRenderRenderID,L"YafaRay Renderer_Menu",false,false);
+	in_reg.RegisterRenderer(L"YafaRay Integrated Renderer");
     
 	//RegistrationInsertionPoint - do not remove this line
 
@@ -2062,7 +2063,7 @@ void yafaray_material(yafrayInterface_t *yi)
 //--
 */
 //--
-int yafaray_object(X3DObject o, yafrayInterface_t *yi)
+int yafaray_object(X3DObject o, yafrayInterface_t *yi, double time = DBL_MAX)
 {
     //-- objects
 	yi->paramsClearAll();  //------------
@@ -2072,7 +2073,7 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi)
 	CValue retVal=false ;
     //--
 	bool vIsMeshLight=false, vIsSet=false, vText=false, vIsSubD=false, vIsMod=false;
-	Geometry g(o.GetActivePrimitive().GetGeometry()) ;
+	Geometry g(o.GetActivePrimitive().GetGeometry(time)) ;
 	
 	CRefArray mats(o.GetMaterials()); // Array of all materials of the object
 	Material m = mats[0];
@@ -2393,8 +2394,16 @@ void yafaray_render(yafrayInterface_t *yi){
 }
 
 //--
-int yaf_export()
+int yaf_export(double in_time)
 {
+	double time = in_time;
+	//if( time == DBL_MAX )
+	//{
+	//	CRefArray projectProps = Application().GetActiveProject().GetProperties();
+	//	Property playControl = projectProps.GetItem( L"Play Control" );
+	//	time = playControl.GetParameterValue( L"Current" );
+	//}
+
     yafrayInterface_t *yi; 
 
     if ( out_type == "xml_file" )
@@ -2470,12 +2479,12 @@ int yaf_export()
        
  		for (int i=0; i < aMesh.GetCount(); i++)
         {
-           yafaray_object(aMesh[i], yi);
+           yafaray_object(aMesh[i], yi, time);
         }
         //--
         for (int i=0; i < aSurfaces.GetCount(); i++)
         {
-           yafaray_object(aSurfaces[i], yi);
+           yafaray_object(aSurfaces[i], yi, time);
         }
 	
 	//-- create camera
