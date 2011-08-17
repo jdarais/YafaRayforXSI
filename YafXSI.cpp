@@ -44,7 +44,9 @@ XSIPLUGINCALLBACK CStatus XSILoadPlugin( PluginRegistrar& in_reg )
 	in_reg.PutVersion(0,1);
 	in_reg.RegisterProperty(L"YafaRay Renderer");
 	in_reg.RegisterMenu(siMenuTbRenderRenderID,L"YafaRay Renderer_Menu",false,false);
-	in_reg.RegisterRenderer(L"YafaRay Integrated Renderer");
+	
+	//This is not ready to be exposed
+	//in_reg.RegisterRenderer(L"YafaRay Integrated Renderer");
     
 	//RegistrationInsertionPoint - do not remove this line
 
@@ -1087,7 +1089,7 @@ void yafaray_integrator(yafrayInterface_t *yi){
 	else if (vLighting == 2) //-- path
     {
         //--
-        char A_method [4][7] = {"none", "path", "photon", "both" }; //-- iter vTracer_method
+        const char *A_method [] = {"none", "path", "photon", "both" }; //-- iter vTracer_method
         bool photons = false;
         if ( vTracer_method > 1 ) photons = true;
         string metod(A_method[vTracer_method]);
@@ -1150,7 +1152,7 @@ void yafaray_volume_integrator(yafrayInterface_t *yi)	//----/ volume integrator 
 }
 
 //--
-void yafaray_cam(yafrayInterface_t *yi)
+void yafaray_cam(yafrayInterface_t *yi, long time)
 {
     // create arrays
 	CRefArray o_array, aYaf_cam;
@@ -1166,8 +1168,8 @@ void yafaray_cam(yafrayInterface_t *yi)
     {
         o = o_array[i];
         Property visi = o.GetProperties().GetItem(L"Visibility");
-        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis");
-        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis");
+        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis", time);
+        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis", time);
         //--
         if (o.GetType()==L"CameraRoot")
         {
@@ -1243,7 +1245,7 @@ void yafaray_cam(yafrayInterface_t *yi)
         CString vCType = L"pinhole";
 	    float vFdist = 0.0, vLensr = 0.0, vFocal = 0.0;
         int vdof_mode = 0;
-        float aspect(cam.GetParameterValue(L"aspect"));
+        float aspect(cam.GetParameterValue(L"aspect", time));
 
 	    CRefArray cShaders = cam.GetShaders();
 	    for (int i=0; i < cShaders.GetCount(); i++)
@@ -1252,25 +1254,25 @@ void yafaray_cam(yafrayInterface_t *yi)
             app.LogMessage(L" name vcsid: "+ CString(vCSID));
 	    	if (vCSID==L"sib_dof") // Depth_of_field shader found
             {
-                vdof_mode = Shader(cShaders[i]).GetParameterValue(L"mode");
-			    vLensr = Shader(cShaders[i]).GetParameterValue(L"strenght");
-			    vFdist = Shader(cShaders[i]).GetParameterValue(L"auto_focal_distance");
+                vdof_mode = Shader(cShaders[i]).GetParameterValue(L"mode", time);
+			    vLensr = Shader(cShaders[i]).GetParameterValue(L"strenght", time);
+			    vFdist = Shader(cShaders[i]).GetParameterValue(L"auto_focal_distance", time);
 		    }
 	    }
 	    //-- calculate the proper FOV (horizontal -> vertical)
 	    float vfov;
-	    if ((int)cam.GetParameterValue(L"fovtype")==1) //- horizontal
+	    if ((int)cam.GetParameterValue(L"fovtype", time)==1) //- horizontal
         {
 		    
-		    float hfov = cam.GetParameterValue(L"fov");
+		    float hfov = cam.GetParameterValue(L"fov", time);
 		    vfov = float (2* atan(1/aspect * tan(hfov/2*PI/180))*180/PI);
         } 
         else  //- keep vertical FOV
         {
-            vfov = cam.GetParameterValue(L"fov");
+            vfov = cam.GetParameterValue(L"fov", time);
     	}
     	//--
-        int vcam_type = cam.GetParameterValue(L"proj");
+        int vcam_type = cam.GetParameterValue(L"proj", time);
     	vCam = cam.GetName();
         //--
         if (vcam_type == 1) //-- perspective / architect
@@ -1295,7 +1297,7 @@ void yafaray_cam(yafrayInterface_t *yi)
             yi->paramsSetPoint("up", up.GetX(), -up.GetZ(), up.GetY() );
 	        yi->paramsSetInt("resx", vXRes);
 	        yi->paramsSetInt("resy", vYRes);
-	        yi->paramsSetFloat("scale", float (cam.GetParameterValue(L"orthoheight"))); // orthoheight ?
+	        yi->paramsSetFloat("scale", float (cam.GetParameterValue(L"orthoheight", time))); // orthoheight ?
 	        yi->paramsSetString("type", "orthographic");
         }
     }
@@ -1304,7 +1306,7 @@ void yafaray_cam(yafrayInterface_t *yi)
 }
 
 //--
-void yafaray_light(yafrayInterface_t *yi)
+void yafaray_light(yafrayInterface_t *yi, long time)
 {
 	// create arrays lights
 	CRefArray obj_array, aYaflight;
@@ -1324,8 +1326,8 @@ void yafaray_light(yafrayInterface_t *yi)
         light_name = o.GetName().GetAsciiString();
         //--
         Property visi = o.GetProperties().GetItem(L"Visibility");
-        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis");
-        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis");
+        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis", time);
+        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis", time);
         if (vIsHiddenLight == false && view_visbl == false && rend_visbl == false) continue;
        
         //--
@@ -1348,9 +1350,9 @@ void yafaray_light(yafrayInterface_t *yi)
 	    CVector3 vLightFrom = gt.GetTranslation(); 
 	    CVector3 vSpotTo = gt2.GetTranslation(); 
 	    //---
-        float vIntensity = s.GetParameterValue(L"intensity");
-        float vLightCone = o.GetParameterValue(L"LightCone"); //-- object ?
-	    float vspotblend = s.GetParameterValue(L"spread");
+        float vIntensity = s.GetParameterValue(L"intensity", time);
+        float vLightCone = o.GetParameterValue(L"LightCone", time); //-- object ?
+	    float vspotblend = s.GetParameterValue(L"spread", time);
     
         // vsoft_shadow = 
         //---------------------
@@ -1395,16 +1397,16 @@ void yafaray_light(yafrayInterface_t *yi)
         }  
         else  //-- point light
         {
-            bool vSiArealight = o.GetParameterValue(L"LightArea");
-	        bool vSiArea_vis = o.GetParameterValue(L"LightAreaVisible");
-	        int vlight_geo = o.GetParameterValue(L"LightAreaGeom");
+            bool vSiArealight = o.GetParameterValue(L"LightArea", time);
+	        bool vSiArea_vis = o.GetParameterValue(L"LightAreaVisible", time);
+	        int vlight_geo = o.GetParameterValue(L"LightAreaGeom", time);
 	        //--
 	        if (vSiArealight == true) 
             {
                 //--
-                float size_X(o.GetParameterValue(L"LightAreaXformSX"));
-                float size_Y(o.GetParameterValue(L"LightAreaXformSY"));
-                float size_Z(o.GetParameterValue(L"LightAreaXformSZ"));
+                float size_X(o.GetParameterValue(L"LightAreaXformSX", time));
+                float size_Y(o.GetParameterValue(L"LightAreaXformSY", time));
+                float size_Z(o.GetParameterValue(L"LightAreaXformSZ", time));
                 //--
                 float pointX  = vLightFrom.GetX() + size_X/2 ;
                 float pointXN = vLightFrom.GetX() - size_X/2 ;
@@ -1413,8 +1415,8 @@ void yafaray_light(yafrayInterface_t *yi)
                 float pointZ = vLightFrom.GetY();
                 
                 //-- samples U + V / 2
-                int U_samples = o.GetParameterValue(L"LightAreaSampU");
-                int V_samples = o.GetParameterValue(L"LightAreaSampV");
+                int U_samples = o.GetParameterValue(L"LightAreaSampU", time);
+                int V_samples = o.GetParameterValue(L"LightAreaSampV", time);
                 
                 //--
                 if (vlight_geo == 1) //-- rectangle
@@ -1464,7 +1466,7 @@ void yafaray_light(yafrayInterface_t *yi)
     }
 }
 //--
-void yafaray_material(yafrayInterface_t *yi)
+void yafaray_material(yafrayInterface_t *yi, long time)
 {
     //-- create defaultMat and lightmat
     yi->paramsSetString("type", "shinydiffusemat");
@@ -1532,21 +1534,21 @@ void yafaray_material(yafrayInterface_t *yi)
                 tex_name = string(texName.GetAsciiString()).c_str();
                             
                 //-- texture  procedural
-                char A_proc [4] [7]={"none", "clouds", "marble", "wood"};
-                int vproced = int(vTexture.GetParameterValue(L"procedural"));
+                const char *A_proc [] ={"none", "clouds", "marble", "wood"};
+                int vproced = int(vTexture.GetParameterValue(L"procedural", time));
                 //if ( vproced > 0 ) vTexType = A_proc[vproced];
                 vTexType = A_proc[vproced];
                 //--
-                char A_noisetype [10][16]={"blender", "stdperlin", "newperlin", "voronoi_f1", "voronoi_f2",
+                const char *A_noisetype [] ={"blender", "stdperlin", "newperlin", "voronoi_f1", "voronoi_f2",
                         "voronoi_f3", "voronoi_f4", "voronoi_f2f1", "voronoi_crackle", "cellnoise"};
-                int nstype = int(vTexture.GetParameterValue(L"noise_basis"));
+                int nstype = int(vTexture.GetParameterValue(L"noise_basis", time));
                 string n_type = string(A_noisetype[nstype]); 
                 //--
-                float n_size = float(vTexture.GetParameterValue(L"noise_size"));
+                float n_size = float(vTexture.GetParameterValue(L"noise_size", time));
                 if (n_size > 0 ) n_size = 1.0/n_size;
                 //--
-                char A_wave [3][4]={"sin", "saw", "tri"};
-                int w_type = int(vTexture.GetParameterValue(L"wave_type"));
+                const char *A_wave [] ={"sin", "saw", "tri"};
+                int w_type = int(vTexture.GetParameterValue(L"wave_type", time));
                 string n_shape(A_wave[w_type]); //-- new form..
                                 
                 //-- find path image file
@@ -1556,38 +1558,38 @@ void yafaray_material(yafrayInterface_t *yi)
                     vTexType = L"image";
                     ImageClip2 vImgClip(vTexture.GetImageClip() );
                  	Source vImgClipSrc(vImgClip.GetSource());
-					vFile_tex_name = vImgClipSrc.GetParameterValue( L"path");
+					vFile_tex_name = vImgClipSrc.GetParameterValue( L"path", time);
                 }
 		        //--
 		        if (vTexType == L"image")
                 {
                     //--
-                    char A_project [5][9] = {"extend","clip","clipcube","repeat","checker"};
-		            int vClipp = s.GetParameterValue(L"projection");
+                    const char *A_project [] = {"extend","clip","clipcube","repeat","checker"};
+		            int vClipp = s.GetParameterValue(L"projection", time);
 			        //--
                     yi->printInfo("Exporter: Creating Texture: \"" + tex_name + "\" type IMAGE");
 			        yi->paramsSetString("filename", string(vFile_tex_name.GetAsciiString()).c_str());
 			        yi->paramsSetFloat("gamma", vContrast);
-			        yi->paramsSetBool("use_alpha", bool(s.GetParameterValue(L"use_alpha")));
-			        yi->paramsSetBool("calc_alpha", bool(s.GetParameterValue(L"calc_alpha")));
-			        yi->paramsSetFloat("normalmap", bool(s.GetParameterValue(L"normalmap")));
+			        yi->paramsSetBool("use_alpha", bool(s.GetParameterValue(L"use_alpha", time)));
+			        yi->paramsSetBool("calc_alpha", bool(s.GetParameterValue(L"calc_alpha", time)));
+			        yi->paramsSetFloat("normalmap", bool(s.GetParameterValue(L"normalmap", time)));
 			        yi->paramsSetString("clipping", A_project[vClipp]);
 			
 			        if (vClipp == 3) //-- repeat
                     {
-			    	    yi->paramsSetInt("xrepeat", int(s.GetParameterValue(L"repeat_x")));
-			    	    yi->paramsSetInt("yrepeat", int(s.GetParameterValue(L"repeat_y")));
+			    	    yi->paramsSetInt("xrepeat", int(s.GetParameterValue(L"repeat_x", time)));
+			    	    yi->paramsSetInt("yrepeat", int(s.GetParameterValue(L"repeat_y", time)));
                     }
 			        if (vClipp == 4) //-- checker
                     {
-				        yi->paramsSetBool("even_tiles", bool( s.GetParameterValue(L"even")));	
-				        yi->paramsSetBool("odd_tiles", bool( s.GetParameterValue(L"odd")));
+				        yi->paramsSetBool("even_tiles", bool( s.GetParameterValue(L"even", time)));	
+				        yi->paramsSetBool("odd_tiles", bool( s.GetParameterValue(L"odd", time)));
                     }
-			        yi->paramsSetFloat("cropmax_x", float(s.GetParameterValue(L"maxx")));	
-			        yi->paramsSetFloat("cropmax_y", float(s.GetParameterValue(L"maxy")));
-			        yi->paramsSetFloat("cropmin_x", float(s.GetParameterValue(L"minx")));
-			        yi->paramsSetFloat("cropmin_y", float(s.GetParameterValue(L"miny")));
-			        yi->paramsSetBool("rot90", bool(s.GetParameterValue(L"rot")));
+			        yi->paramsSetFloat("cropmax_x", float(s.GetParameterValue(L"maxx", time)));	
+			        yi->paramsSetFloat("cropmax_y", float(s.GetParameterValue(L"maxy", time)));
+			        yi->paramsSetFloat("cropmin_x", float(s.GetParameterValue(L"minx", time)));
+			        yi->paramsSetFloat("cropmin_y", float(s.GetParameterValue(L"miny", time)));
+			        yi->paramsSetBool("rot90", bool(s.GetParameterValue(L"rot", time)));
                     //--
 			        yi->paramsSetString("type", "image");
 				}
@@ -1597,18 +1599,18 @@ void yafaray_material(yafrayInterface_t *yi)
                     yi->paramsSetString("type", "clouds");
                     yi->paramsSetFloat("size", n_size);
                     yi->paramsSetString("noise_type", n_type.c_str());
-                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type")));                                                   
-                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth")));
+                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type", time)));                                                   
+                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth", time)));
    
                 }
                 if (vTexType == L"marble")
                 {   
                     yi->printInfo("Exporter: Creating Texture: \"" + tex_name + "\" type MARBLE");
                     yi->paramsSetString("type", "marble");
-                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth")));
-                    yi->paramsSetFloat("turbulence", float(vTexture.GetParameterValue(L"turbulence")));
+                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth", time)));
+                    yi->paramsSetFloat("turbulence", float(vTexture.GetParameterValue(L"turbulence", time)));
                     yi->paramsSetFloat("size", n_size);
-                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type")));    
+                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type", time)));    
                     yi->paramsSetFloat("sharpness", 2.0);
                     yi->paramsSetString("noise_type",  n_type.c_str());
                     yi->paramsSetString("shape", n_shape.c_str());       
@@ -1617,16 +1619,16 @@ void yafaray_material(yafrayInterface_t *yi)
                 {
                     yi->printInfo("Exporter: Creating Texture: \"" + tex_name + "\" type WOOD");
                     yi->paramsSetString("type", "wood");
-                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth")));
+                    yi->paramsSetInt("depth", int(vTexture.GetParameterValue(L"noise_depth", time)));
 
                     //turb       = 0.0
                     //noise_size = 0.25
                     //hard       = True
 
                    // if tex.wood_type == 'BANDNOISE' or tex.wood_type == 'RINGNOISE':                    
-                    yi->paramsSetFloat("turbulence", float(vTexture.GetParameterValue(L"turbulence")));
+                    yi->paramsSetFloat("turbulence", float(vTexture.GetParameterValue(L"turbulence", time)));
                     yi->paramsSetFloat("size", n_size );
-                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type"))); 
+                    yi->paramsSetBool("hard", bool(vTexture.GetParameterValue(L"noise_type", time))); 
                     yi->paramsSetString("wood_type", "bands" );
                     yi->paramsSetString("noise_type",  n_type.c_str());
                     yi->paramsSetString("shape", n_shape.c_str());
@@ -1646,8 +1648,8 @@ void yafaray_material(yafrayInterface_t *yi)
         //-- containers for layer_name
         string diffRoot, bumpRoot, mircolRoot, mirrRoot, transluRoot, transpRoot, glossRoot, glossrefRoot, filtcolRoot;
 		//--
-        char A_reflect [2][17]={"oren_nayar", "Normal (Lambert)"}; //-- bdrf
-        int bdrf = s.GetParameterValue(L"brdf");
+        const char *A_reflect [] ={"oren_nayar", "Normal (Lambert)"}; //-- bdrf
+        int bdrf = s.GetParameterValue(L"brdf", time);
         string ref_mode(A_reflect[bdrf]);
         //--
         yi->paramsClearAll();
@@ -1655,42 +1657,42 @@ void yafaray_material(yafrayInterface_t *yi)
         if ( vMatID==L"yaf_glass" || vMatID==L"yaf_roughglass" ) 
         {
             //-- glass or rough glass 
-			yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"ior")));
+			yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"ior", time)));
 				s.GetColorParameterValue(L"absorption",red, green, blue, alpha );
 			yi->paramsSetColor("absorption", red, green, blue, alpha);
-			yi->paramsSetFloat("absorption_dist", float(s.GetParameterValue(L"absorption_dist")));
-		    yi->paramsSetFloat("dispersion_power", float(s.GetParameterValue(L"dispersion")));
-		    yi->paramsSetBool("fake_shadows", bool(s.GetParameterValue(L"fake_shadows")));
+			yi->paramsSetFloat("absorption_dist", float(s.GetParameterValue(L"absorption_dist", time)));
+		    yi->paramsSetFloat("dispersion_power", float(s.GetParameterValue(L"dispersion", time)));
+		    yi->paramsSetBool("fake_shadows", bool(s.GetParameterValue(L"fake_shadows", time)));
 				s.GetColorParameterValue(L"filter_color",red, green, blue, alpha );
 			yi->paramsSetColor("filter_color", red, green, blue);
 				s.GetColorParameterValue(L"mirror_color",red, green, blue, alpha );
 			yi->paramsSetColor("mirror_color", red, green, blue, alpha);
-			yi->paramsSetFloat("transmit_filter", float(s.GetParameterValue(L"transmit_filter"))); 
+			yi->paramsSetFloat("transmit_filter", float(s.GetParameterValue(L"transmit_filter", time))); 
             //--
             string rough = "glass";
-            float vExponent(s.GetParameterValue(L"exponent"));
+            float vExponent(s.GetParameterValue(L"exponent", time));
 			if (vExponent > 0)
             {
                 yi->paramsSetFloat("exponent", vExponent);
 		        rough = "rough_glass";
             }
             //---
-            if ((bool)s.GetParameterValue(L"bump_layer") == true) 
+            if ((bool)s.GetParameterValue(L"bump_layer", time) == true) 
             {
                 yi->paramsSetString("bump_shader", "bump_layer");
                 bumpRoot = "bump_layer";    n_lay++ ;
             }
-            if ((bool)s.GetParameterValue(L"diff_layer") == true)
+            if ((bool)s.GetParameterValue(L"diff_layer", time) == true)
             {
                 yi->paramsSetString("diffuse_shader", "diff_layer");
                 diffRoot = "diff_layer";    n_lay++ ;
             }
-            if ((bool)s.GetParameterValue(L"filtcol_layer") == true)
+            if ((bool)s.GetParameterValue(L"filtcol_layer", time) == true)
             {
                 yi->paramsSetString("filter_color_shader", "filtcol_layer");
                 filtcolRoot = "filtcol_layer";    n_lay++ ;
             }
-            if ((bool)s.GetParameterValue(L"mircol_layer") == true)
+            if ((bool)s.GetParameterValue(L"mircol_layer", time) == true)
             {
                 yi->paramsSetString("mirror_color_shader", "mircol_layer"); 
                 mircolRoot = "mircol_layer";    n_lay++;
@@ -1700,49 +1702,49 @@ void yafaray_material(yafrayInterface_t *yi)
         }
         else if ( vMatID == L"yaf_glossy" || vMatID == L"yaf_coated_glossy" )
         {
-            yi->paramsSetBool("anisotropic", bool(s.GetParameterValue(L"anisotropic")));
-		    yi->paramsSetBool("as_diffuse", bool(s.GetParameterValue(L"as_diffuse"))); 
+            yi->paramsSetBool("anisotropic", bool(s.GetParameterValue(L"anisotropic", time)));
+		    yi->paramsSetBool("as_diffuse", bool(s.GetParameterValue(L"as_diffuse", time))); 
 			    s.GetColorParameterValue(L"diffuse",red,green,blue,alpha );
 		    yi->paramsSetColor("diffuse_color", red, green, blue, alpha);
 			    s.GetColorParameterValue(L"glossy",red,green,blue,alpha );
 		    yi->paramsSetColor("color", red, green, blue, alpha);
-		    yi->paramsSetFloat("diffuse_reflect", float(s.GetParameterValue(L"diffuse_reflec")));
-		    yi->paramsSetFloat("exp_u",	float(s.GetParameterValue(L"exponent_hor")));
-		    yi->paramsSetFloat("exp_v",	float(s.GetParameterValue(L"exponent_ver")));
-		    yi->paramsSetFloat("exponent", float(s.GetParameterValue(L"exponent")));
-		    yi->paramsSetFloat("glossy_reflect", float(s.GetParameterValue(L"reflect_glossy")));
+		    yi->paramsSetFloat("diffuse_reflect", float(s.GetParameterValue(L"diffuse_reflec", time)));
+		    yi->paramsSetFloat("exp_u",	float(s.GetParameterValue(L"exponent_hor", time)));
+		    yi->paramsSetFloat("exp_v",	float(s.GetParameterValue(L"exponent_ver", time)));
+		    yi->paramsSetFloat("exponent", float(s.GetParameterValue(L"exponent", time)));
+		    yi->paramsSetFloat("glossy_reflect", float(s.GetParameterValue(L"reflect_glossy", time)));
 		    yi->paramsSetString("diffuse_brdf", ref_mode.c_str());
             //-- lack "use photon map"
             if ( bdrf == 0)
             {
-	    	    yi->paramsSetFloat("sigma", float(s.GetParameterValue(L"sigma")));
+	    	    yi->paramsSetFloat("sigma", float(s.GetParameterValue(L"sigma", time)));
             }
             //-- for coated
             string coated = "glossy";
-            if ( float(s.GetParameterValue(L"IOR")) > 0 )
+            if ( float(s.GetParameterValue(L"IOR", time)) > 0 )
             {
-                yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"IOR")));
+                yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"IOR", time)));
                 s.GetColorParameterValue(L"mirror",red,green,blue,alpha );
                 yi->paramsSetColor("mirror_color", red, green, blue, alpha);
 		        coated = "coated_glossy"; 
             }
             //--------------------------------------------------------------
-            if ((bool)s.GetParameterValue(L"bump_layer") == true) 
+            if ((bool)s.GetParameterValue(L"bump_layer", time) == true) 
             {
                 yi->paramsSetString("bump_shader", "bump_layer");
                 bumpRoot = "bump_layer";    n_lay++ ;
             }
-            if ((bool)s.GetParameterValue(L"diff_layer") == true)
+            if ((bool)s.GetParameterValue(L"diff_layer", time) == true)
             {
                 yi->paramsSetString("diffuse_shader", "diff_layer");
                 diffRoot = "diff_layer";    n_lay++ ;
             }
-            if ((bool)s.GetParameterValue(L"glossref_layer") == true) 
+            if ((bool)s.GetParameterValue(L"glossref_layer", time) == true) 
             {
 		        yi->paramsSetString("glossy_reflect_shader", "glossref_layer");
                 glossrefRoot = "glossref_layer";    n_lay++ ;
 		    }
-		    if ((bool)s.GetParameterValue(L"gloss_layer") == true) 
+		    if ((bool)s.GetParameterValue(L"gloss_layer", time) == true) 
             {
                 yi->paramsSetString("glossy_shader", "gloss_layer");
                 glossRoot = "gloss_layer";    n_lay++;
@@ -1752,23 +1754,23 @@ void yafaray_material(yafrayInterface_t *yi)
 	    }
         else if (vMatID==L"yaf_shinydiffusemat")
         {  
-            yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"ior")));
+            yi->paramsSetFloat("IOR", float(s.GetParameterValue(L"ior", time)));
 			    s.GetColorParameterValue(L"diffuse_color",red,green,blue,alpha );
             yi->paramsSetString("diffuse_brdf", ref_mode.c_str());
 	    	if ( bdrf == 0 )
             {
-	    	    yi->paramsSetFloat("sigma", float(s.GetParameterValue(L"sigma")));
+	    	    yi->paramsSetFloat("sigma", float(s.GetParameterValue(L"sigma", time)));
             }
             yi->paramsSetColor("color", red, green, blue, alpha);
-		    yi->paramsSetFloat("diffuse_reflect", float(s.GetParameterValue(L"diffuse_reflec")));
-		    yi->paramsSetFloat("emit", float(s.GetParameterValue(L"emit")));
-		    yi->paramsSetBool("fresnel_effect", bool(s.GetParameterValue(L"fresnel")));
+		    yi->paramsSetFloat("diffuse_reflect", float(s.GetParameterValue(L"diffuse_reflec", time)));
+		    yi->paramsSetFloat("emit", float(s.GetParameterValue(L"emit", time)));
+		    yi->paramsSetBool("fresnel_effect", bool(s.GetParameterValue(L"fresnel", time)));
 			    s.GetColorParameterValue(L"mirror_color",red,green,blue,alpha );
 		    yi->paramsSetColor("mirror_color", red, green, blue, alpha);
-    		yi->paramsSetFloat("specular_reflect", float(s.GetParameterValue(L"mirror_strength")));
-	    	yi->paramsSetFloat("translucency", float(s.GetParameterValue(L"translucency"))); // proba
-		    yi->paramsSetFloat("transmit_filter", float(s.GetParameterValue(L"transmit_filter")));
-		    yi->paramsSetFloat("transparency", float(s.GetParameterValue(L"transparency")));
+    		yi->paramsSetFloat("specular_reflect", float(s.GetParameterValue(L"mirror_strength", time)));
+	    	yi->paramsSetFloat("translucency", float(s.GetParameterValue(L"translucency", time))); // proba
+		    yi->paramsSetFloat("transmit_filter", float(s.GetParameterValue(L"transmit_filter", time)));
+		    yi->paramsSetFloat("transparency", float(s.GetParameterValue(L"transparency", time)));
             //--
      	    yi->paramsSetString("type", "shinydiffusemat"); 
 		
@@ -1780,47 +1782,47 @@ void yafaray_material(yafrayInterface_t *yi)
 		    yi->paramsSetString("type", "shinydiffusemat"); 
         }
         //--------------------------------------------------------------
-        if ((bool)s.GetParameterValue(L"bump_layer") == true) 
+        if ((bool)s.GetParameterValue(L"bump_layer", time) == true) 
         {
             yi->paramsSetString("bump_shader", "bump_layer");
             bumpRoot = "bump_layer";    n_lay++ ;
         }
-        if ((bool)s.GetParameterValue(L"diff_layer") == true)
+        if ((bool)s.GetParameterValue(L"diff_layer", time) == true)
         {
             yi->paramsSetString("diffuse_shader", "diff_layer");
             diffRoot = "diff_layer";    n_lay++ ;
         }
-       /* if ((bool)s.GetParameterValue(L"filtcol_layer") == true)
+       /* if ((bool)s.GetParameterValue(L"filtcol_layer", time) == true)
         {
             yi->paramsSetString("filter_color_shader", "filtcol_layer");
             filtcolRoot = "filtcol_layer";    n_lay++ ;
         }
-        if ((bool)s.GetParameterValue(L"glossref_layer") == true) 
+        if ((bool)s.GetParameterValue(L"glossref_layer", time) == true) 
         {
 		    yi->paramsSetString("glossy_reflect_shader", "glossref_layer");
             glossrefRoot = "glossref_layer";    n_lay++ ;
 		}
-		if ((bool)s.GetParameterValue(L"gloss_layer") == true) 
+		if ((bool)s.GetParameterValue(L"gloss_layer", time) == true) 
         {
             yi->paramsSetString("glossy_shader", "gloss_layer");
             glossRoot = "gloss_layer";    n_lay++;
 		} */
-		if ((bool)s.GetParameterValue(L"mircol_layer") == true)
+		if ((bool)s.GetParameterValue(L"mircol_layer", time) == true)
         {
             yi->paramsSetString("mirror_color_shader", "mircol_layer"); 
             mircolRoot = "mircol_layer";    n_lay++;
         } 
-    	if ((bool)s.GetParameterValue(L"mirr_layer") == true) 
+    	if ((bool)s.GetParameterValue(L"mirr_layer", time) == true) 
         {
             yi->paramsSetString("mirror_shader", "mirr_layer");
             mirrRoot = "mirr_layer";    n_lay++;
         } 
-		if ((bool)s.GetParameterValue(L"translu_layer") == true) 
+		if ((bool)s.GetParameterValue(L"translu_layer", time) == true) 
         {
             yi->paramsSetString("translucency_shader", "translu_layer");
             transluRoot = "translu_layer";    n_lay++;
 		}  
-		if ((bool)s.GetParameterValue(L"transp_layer") == true) 
+		if ((bool)s.GetParameterValue(L"transp_layer", time) == true) 
         {
 		    yi->paramsSetString("transparency_shader", "transp_layer");
             transpRoot = "transp_layer";    n_lay++;
@@ -1880,23 +1882,23 @@ void yafaray_material(yafrayInterface_t *yi)
                 yi->paramsPushList();
                 if ( d_color == true )
                 {
-                    yi->paramsSetFloat("colfac", float(s.GetParameterValue(L"infl_color")));// chcolor 
+                    yi->paramsSetFloat("colfac", float(s.GetParameterValue(L"infl_color", time)));// chcolor 
                 }
 	            yi->paramsSetBool("color_input", is_image); // TODO; is Image or voronoi
 			    s.GetColorParameterValue(L"def_col",red,green,blue,alpha );
 		        yi->paramsSetColor("def_col", red, green, blue, alpha);
-		        yi->paramsSetFloat("def_val", float(s.GetParameterValue(L"dvar")));
+		        yi->paramsSetFloat("def_val", float(s.GetParameterValue(L"dvar", time)));
 		        yi->paramsSetBool("do_color", d_color);
 		        yi->paramsSetBool("do_scalar", d_scalar); 
 		        yi->paramsSetString("element", "shader_node");
                 yi->paramsSetString("type", "layer");
                 yi->paramsSetString("name", layer_name.c_str()); 
                 yi->paramsSetString("input", map_name.c_str()); 
-		        yi->paramsSetInt("mode", int(s.GetParameterValue(L"bmode")));
+		        yi->paramsSetInt("mode", int(s.GetParameterValue(L"bmode", time)));
 
-		        yi->paramsSetBool("negative", bool(s.GetParameterValue(L"negative")));
-		        yi->paramsSetBool("noRGB", bool(s.GetParameterValue(L"nrgb")));
-		        yi->paramsSetBool("stencil", bool(s.GetParameterValue(L"stencil")));  
+		        yi->paramsSetBool("negative", bool(s.GetParameterValue(L"negative", time)));
+		        yi->paramsSetBool("noRGB", bool(s.GetParameterValue(L"nrgb", time)));
+		        yi->paramsSetBool("stencil", bool(s.GetParameterValue(L"stencil", time)));  
     			
 			    s.GetColorParameterValue(L"diffuse_color",red,green,blue,alpha );
 		        yi->paramsSetColor("upper_color", red, green, blue, 1.0);
@@ -1904,32 +1906,32 @@ void yafaray_material(yafrayInterface_t *yi)
                 
                 if (d_scalar)
                 {
-                    yi->paramsSetFloat("valfac", float(s.GetParameterValue(L"dvar")));
+                    yi->paramsSetFloat("valfac", float(s.GetParameterValue(L"dvar", time)));
                 }
-		        yi->paramsSetBool("use_alpha", bool(s.GetParameterValue(L"use_alpha")));
+		        yi->paramsSetBool("use_alpha", bool(s.GetParameterValue(L"use_alpha", time)));
                 yi->paramsEndList();
   			
 	            //-- Map input 
-			    char aMap [10][12]={"global", "transformed", "uv", "orco", "stick",
+			    const char *aMap [] ={"global", "transformed", "uv", "orco", "stick",
                     "window", "normal", "reflect", "stress", "tangent"};
-       		    int fMap =	s.GetParameterValue(L"from_map"); //---/ for texco value /---->
+       		    int fMap =	s.GetParameterValue(L"from_map", time); //---/ for texco value /---->
 
-                char aType [4][7]={"plain","tube","cube","sphere"};
-			    int tMap =	s.GetParameterValue(L"map_type"); //----/ for mapping value /---->
+                const char *aType [] ={"plain","tube","cube","sphere"};
+			    int tMap =	s.GetParameterValue(L"map_type", time); //----/ for mapping value /---->
                 
 			    //-- Transform, translate 
-                float vOff_x = s.GetParameterValue(L"ofset_x"); // in SPDL file
-			    float vOff_y = s.GetParameterValue(L"ofset_y");
-			    float vOff_z = s.GetParameterValue(L"ofset_z");
+                float vOff_x = s.GetParameterValue(L"ofset_x", time); // in SPDL file
+			    float vOff_y = s.GetParameterValue(L"ofset_y", time);
+			    float vOff_z = s.GetParameterValue(L"ofset_z", time);
 			    //-- scale 
-			    float vSize_x =	s.GetParameterValue(L"size_x"); // in SPDL file
-			    float vSize_y = s.GetParameterValue(L"size_y");
-			    float vSize_z = s.GetParameterValue(L"size_z");
+			    float vSize_x =	s.GetParameterValue(L"size_x", time); // in SPDL file
+			    float vSize_y = s.GetParameterValue(L"size_y", time);
+			    float vSize_z = s.GetParameterValue(L"size_z", time);
 			    //----/ projection map /---->
-			    int vPmap_x = s.GetParameterValue(L"combo_x"); // in SPDL file
-			    int vPmap_y = s.GetParameterValue(L"combo_y");
-			    int vPmap_z = s.GetParameterValue(L"combo_z");
-                float bump_factor = s.GetParameterValue(L"bump_fac");
+			    int vPmap_x = s.GetParameterValue(L"combo_x", time); // in SPDL file
+			    int vPmap_y = s.GetParameterValue(L"combo_y", time);
+			    int vPmap_z = s.GetParameterValue(L"combo_z", time);
+                float bump_factor = s.GetParameterValue(L"bump_fac", time);
                 //--
                 string t_name = string(CString(A_texture[k]).GetAsciiString()).c_str();
                 app.LogMessage(L" nametex: "+ CString(t_name.c_str()));
@@ -2083,7 +2085,7 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi, double time = DBL_MAX)
     CString oMat = o.GetMaterial().GetName().GetAsciiString();
     mat_name = string(oMat.GetAsciiString()).c_str();
     //--
-    if ( float(s.GetParameterValue(L"inc_inten"))> 0 )
+    if ( float(s.GetParameterValue(L"inc_inten", time))> 0 )
     {
         vIsMeshLight = true;
         mat_name = "lm";
@@ -2118,10 +2120,10 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi, double time = DBL_MAX)
     float angle = gapproxmoan
     
     */
-	if ((int)geopr.GetParameterValue(L"gapproxmordrsl") > 0 || (int)geopr.GetParameterValue(L"gapproxmosl") > 0)
+	if ((int)geopr.GetParameterValue(L"gapproxmordrsl", time) > 0 || (int)geopr.GetParameterValue(L"gapproxmosl", time) > 0)
     {
 		vIsSubD = true;
-		subdLevel = (int)geopr.GetParameterValue(L"gapproxmordrsl");
+		subdLevel = (int)geopr.GetParameterValue(L"gapproxmordrsl", time);
     }
     else 
     {
@@ -2202,7 +2204,7 @@ int yafaray_object(X3DObject o, yafrayInterface_t *yi, double time = DBL_MAX)
     return 0;
 }
 //--
-void yafaray_world(yafrayInterface_t *yi) 
+void yafaray_world(yafrayInterface_t *yi, long time) 
 {
     yi->paramsClearAll();
 
@@ -2223,7 +2225,7 @@ void yafaray_world(yafrayInterface_t *yi)
                     {
                         ImageClip2 vImgClip(aEnvImg[k]);
                         Source vImgClipSrc(vImgClip.GetSource());
-                        CString vFileName = vImgClipSrc.GetParameterValue( L"path");
+                        CString vFileName = vImgClipSrc.GetParameterValue( L"path", time);
 				        if (vFileName!=L"")
                         {
                             vHDRI=vFileName.GetAsciiString();
@@ -2305,7 +2307,7 @@ void yafaray_world(yafrayInterface_t *yi)
     {
         yi->paramsSetFloat("exposure_adjust", 0.5); // TODO
 		yi->paramsSetString("filename", string(vHDRI.GetAsciiString()).c_str());
-        char A_mapping [2][7] = {"probe", "sphere"};
+        const char *A_mapping [] = {"probe", "sphere"};
         //--
         if (vUse_interp) 
         { 
@@ -2357,7 +2359,7 @@ void yafaray_world(yafrayInterface_t *yi)
 //--
 void yafaray_render(yafrayInterface_t *yi){
     // create render -------------------->
-    char A_tile_order [2] [7] = {"random", "linear"};
+    const char *A_tile_order [] = {"random", "linear"};
 		yi->paramsClearAll();   
 		//---
 		yi->paramsSetInt("AA_inc_samples", vAA_inc );
@@ -2394,16 +2396,8 @@ void yafaray_render(yafrayInterface_t *yi){
 }
 
 //--
-int yaf_export(double in_time)
+int yaf_export(double time)
 {
-	double time = in_time;
-	//if( time == DBL_MAX )
-	//{
-	//	CRefArray projectProps = Application().GetActiveProject().GetProperties();
-	//	Property playControl = projectProps.GetItem( L"Play Control" );
-	//	time = playControl.GetParameterValue( L"Current" );
-	//}
-
     yafrayInterface_t *yi; 
 
     if ( out_type == "xml_file" )
@@ -2437,8 +2431,8 @@ int yaf_export(double in_time)
         
 		//--
 		Property visi=o.GetProperties().GetItem(L"Visibility");
-        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis");
-        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis");
+        bool view_visbl = (bool)visi.GetParameterValue(L"viewvis", time);
+        bool rend_visbl = (bool)visi.GetParameterValue(L"rendvis", time);
 
 		if (o.GetType()==L"polymsh")
         {
@@ -2467,12 +2461,12 @@ int yaf_export(double in_time)
 	//-- create material ------------------
 	yi->printInfo("Exporter: Processing Materials.....");
     //--
-    yafaray_material(yi); 
+    yafaray_material(yi,time); 
      
 	//-- create lights --------------------		
 	yi->printInfo("Exporter: Creating Lights.....");
     //--
-    yafaray_light(yi);
+    yafaray_light(yi, time);
   
 	//-- create geometry 
     yi->printInfo("Exporter: Creating Geometry.....");
@@ -2490,11 +2484,11 @@ int yaf_export(double in_time)
 	//-- create camera
 	yi->printInfo("Exporter: Creating Camera.....");
 	
-        yafaray_cam(yi);
+        yafaray_cam(yi, time);
   
 	//-- create background 
 	yi->printInfo("Exporter: Creating Background.....");
-			yafaray_world(yi);
+			yafaray_world(yi, time);
 	
 	// create integrator ----------------> funciona  2011 / 7.5
 	yi->printInfo("Exporter: Creating Integrator....."); 
